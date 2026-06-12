@@ -9,6 +9,7 @@ import 'notifications_screen.dart';
 import 'receipt_verify_screen.dart';
 import 'tax_calculator_screen.dart';
 import 'chat_screen.dart';
+import 'pay_tax_screen.dart';
 
 /// Citizen view of their own record + ability to raise a correction request.
 class UserDashboard extends StatefulWidget {
@@ -192,6 +193,14 @@ class _UserDashboardState extends State<UserDashboard> {
 
   void _openTaxCalculator() => Navigator.push(context, MaterialPageRoute(builder: (_) => const TaxCalculatorScreen()));
 
+  Future<void> _payTax() async {
+    final paid = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => PayTaxScreen(cnic: widget.cnic, name: '${_d?['identity']?['name'] ?? ''}')),
+    );
+    if (paid == true) _load(); // refresh profile: tax_paid + score updated
+  }
+
   Future<void> _reportIssue() async {
     String category = 'Wrong record';
     final desc = TextEditingController();
@@ -319,6 +328,16 @@ class _UserDashboardState extends State<UserDashboard> {
                 const SizedBox(width: 10),
                 Expanded(child: _serviceBtn('Tax Calculator', Icons.calculate, _openTaxCalculator)),
               ]),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(backgroundColor: kSeed, foregroundColor: Colors.white, padding: const EdgeInsets.all(14)),
+                  onPressed: _payTax,
+                  icon: const Icon(Icons.account_balance_wallet),
+                  label: const Text('Pay Tax'),
+                ),
+              ),
               _miniStream('My Declarations', Supa.declarations(cnic: widget.cnic),
                   (r) => '${r['asset_type']} · ${(r['description'] ?? '')}'),
               _miniStream('My Issues', Supa.issues(cnic: widget.cnic),

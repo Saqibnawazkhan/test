@@ -86,6 +86,11 @@ class Api {
   static Future<Map<String, dynamic>> chat(List<Map<String, String>> messages, {String mode = 'user', String? cnic}) async =>
       await _post('/chat', {'messages': messages, 'mode': mode, 'cnic': cnic ?? ''}, null, const Duration(seconds: 90));
 
+  // ---- tax payment (Zindigi IPG) ----
+  static Future<Map<String, dynamic>> payInitiate(String cnic, num amount, {String name = '', String email = '', String mobile = ''}) async =>
+      await _post('/payments/initiate', {'cnic': cnic, 'amount': amount, 'name': name, 'email': email, 'mobile': mobile});
+  static Future<List<dynamic>> payments(String cnic) async => (await _get('/payments', {'cnic': cnic}))['results'] ?? [];
+
   /// Direct URL to the downloadable findings-driven audit report PDF.
   static String auditReportUrl(String cnic) => '${Config.apiBase}/person/$cnic/audit-report';
 

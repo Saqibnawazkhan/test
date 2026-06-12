@@ -640,6 +640,92 @@ def chat_endpoint(req: ChatReq):
             return {"reply": "The AI assistant is not configured (missing API key).", "error": "no_api_key"}
         return {"reply": "Sorry, the assistant is temporarily unavailable. Please try again.", "error": str(e)[:140]}
 
+def _apply_tax_payment(cnic, amount):
+    """A successful tax payment: add to tax_paid, mark as Filer, recompute score (drops)."""
+    amount = float(amount or 0)
+    t = one("select cnic from tax_returns where cnic=?", (cnic,))
+    if t:
+        execute("update tax_returns set tax_paid=coalesce(tax_paid,0)+?, filer_status='Filer' where cnic=?", (amount, cnic))
+    else:
+        execute("insert into tax_returns(cnic, declared_income, tax_paid, filer_status) values(?,?,?,?)",
+                (cnic, 0, amount, "Filer"))
+    s = one("select own_assets from deviation_scores where cnic=?", (cnic,))
+    if s:
+        return _recompute_score(cnic, s["own_assets"] or 0)
+    return {"ok": True}
+
+class PayInit(BaseModel):
+    cnic: str
+    amount: float
+    name: str = ""
+    email: str = ""
+    mobile: str = ""
+
+@app.post("/payments/initiate")
+def pay_initiate(d: PayInit):
+    """Generate a PSID, fetch a Zindigi access token, store a pending payment."""
+    import zindigi, random
+    execute("""create table if not exists payments(psid text primary key, cnic text, name text, amount real,
+               status text, txn_id text, token text, email text, mobile text, created_at text)""")
+    if d.amount <= 0:
+        raise HTTPException(400, "invalid amount")
+    psid = "PSID" + "".join(random.choice("0123456789") for _ in range(11))
+    token = zindigi.get_access_token(psid, int(d.amount))
+    if not token:
+        raise HTTPException(502, "could not get payment token from Zindigi")
+    execute("""insert into payments(psid,cnic,name,amount,status,txn_id,token,email,mobile,created_at)
+               values(?,?,?,?,?,?,?,?,?,?)""",
+            (psid, d.cnic, d.name, float(d.amount), "Pending", "", token, d.email, d.mobile,
+             datetime.datetime.now().isoformat()))
+    base = os.environ.get("ZINDIGI_RETURN_BASE", "")
+    return {"psid": psid, "amount": int(d.amount), "checkout_url": "{}/payments/checkout/{}".format(base, psid)}
+
+@app.get("/payments/checkout/{psid}")
+def pay_checkout(psid: str):
+    """Self-submitting form that redirects the WebView to the Zindigi checkout."""
+    from fastapi.responses import HTMLResponse
+    import zindigi
+    p = one("select * from payments where psid=?", (psid,))
+    if not p:
+        raise HTTPException(404, "payment not found")
+    html_doc = zindigi.checkout_html(psid, p["token"], int(p["amount"]), p["name"], p["email"], p["mobile"],
+                                     "FBR tax payment", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    return HTMLResponse(html_doc)
+
+@app.get("/payments/return")
+def pay_return(psid: str, r: str = "", err_code: str = "", validation_hash: str = "", transaction_id: str = ""):
+    """Zindigi redirects/IPN lands here. Verify, mark paid, update tax record + score."""
+    from fastapi.responses import HTMLResponse
+    import zindigi
+    p = one("select * from payments where psid=?", (psid,))
+    if not p:
+        return HTMLResponse("<h3>Unknown payment</h3>")
+    success = (r == "ok")
+    if err_code:
+        success = err_code in ("000", "00") and (zindigi.verify_hash(psid, err_code, validation_hash) if validation_hash else True)
+    if success and p["status"] != "Paid":
+        execute("update payments set status='Paid', txn_id=? where psid=?", (transaction_id or "", psid))
+        _apply_tax_payment(p["cnic"], p["amount"])
+    elif not success and p["status"] == "Pending":
+        execute("update payments set status='Failed' where psid=?", (psid,))
+    color = "#1AA978" if success else "#C62828"
+    title = "Payment Successful" if success else "Payment Failed"
+    sub = "Rs {:,} paid. Your tax record and score have been updated.".format(int(p["amount"])) if success else "The payment was not completed."
+    mark = "&#10004;" if success else "&#10006;"  # check / cross HTML entities (ASCII source)
+    return HTMLResponse(
+        "<!doctype html><html><body style='font-family:sans-serif;text-align:center;padding:48px 24px'>"
+        "<div style='font-size:54px;color:{}'>{}</div><h2 style='color:{}'>{}</h2><p style='color:#445'>{}</p>"
+        "<p style='color:#889'>You can return to the TaxNet app.</p></body></html>".format(
+            color, mark, color, title, sub))
+
+@app.get("/payments")
+def payments_list(cnic: str = Query(None), limit: int = Query(20, le=100)):
+    execute("""create table if not exists payments(psid text primary key, cnic text, name text, amount real,
+               status text, txn_id text, token text, email text, mobile text, created_at text)""")
+    if cnic:
+        return {"results": rows("select psid,amount,status,created_at from payments where cnic=? order by created_at desc limit ?", (cnic, limit))}
+    return {"results": rows("select psid,cnic,name,amount,status,created_at from payments order by created_at desc limit ?", (limit,))}
+
 @app.get("/er-metrics")
 def er_metrics():
     silos = [("NADRA", "persons", "cnic"), ("FBR", "tax_returns", "cnic"), ("Excise", "vehicles", "owner_cnic"),
