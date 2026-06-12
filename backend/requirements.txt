@@ -1,0 +1,5 @@
+fastapi
+uvicorn[standard]
+pydantic
+fpdf2
+psycopg[binary]

@@ -86,6 +86,34 @@ class Supa {
     return cnic == null ? s : s.map((r) => r.where((x) => x['cnic'] == cnic).toList());
   }
 
+  // ---------------- asset explanations (explain an existing on-record asset) ----------------
+  static Future<void> explainAsset({
+    required String cnic, String? name, required String assetType, required String assetLabel,
+    num? assetValue, required String source, bool taxPaid = false, String remarks = '', String? proofUrl,
+  }) async {
+    final res = await _c.from('asset_explanations').insert({
+      'cnic': cnic, 'name': name, 'asset_type': assetType, 'asset_label': assetLabel,
+      'asset_value': assetValue, 'source': source, 'tax_paid': taxPaid, 'remarks': remarks, 'proof_url': proofUrl,
+    }).select('id').single();
+    await notify(recipient: 'admin', audience: 'admin', kind: 'request',
+        title: 'Asset explanation', body: '${name ?? cnic} explained: $assetLabel ($source)', refId: res['id'] as int);
+  }
+
+  static Stream<List<Map<String, dynamic>>> explanations({String? cnic}) {
+    final s = _c.from('asset_explanations').stream(primaryKey: ['id']).order('created_at', ascending: false);
+    return cnic == null ? s : s.map((r) => r.where((x) => x['cnic'] == cnic).toList());
+  }
+
+  static Future<void> resolveExplanation(int id, String cnic, String? name, String decision) async {
+    await _c.from('asset_explanations').update({'status': decision}).eq('id', id);
+    await notify(recipient: cnic, kind: decision.toLowerCase(),
+        title: 'Explanation $decision',
+        body: decision == 'Accepted'
+            ? 'FBR accepted your asset explanation. The asset is marked Explained.'
+            : 'FBR did not accept your asset explanation.',
+        refId: id);
+  }
+
   // ---------------- issue reports ----------------
   static Future<void> reportIssue({
     required String cnic, String? name, required String category,

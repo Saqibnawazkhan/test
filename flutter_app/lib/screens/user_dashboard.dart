@@ -6,6 +6,7 @@ import '../common.dart';
 import '../supa.dart';
 import 'person_detail.dart';
 import 'notifications_screen.dart';
+import 'receipt_verify_screen.dart';
 
 /// Citizen view of their own record + ability to raise a correction request.
 class UserDashboard extends StatefulWidget {
@@ -182,6 +183,11 @@ class _UserDashboardState extends State<UserDashboard> {
     }
   }
 
+  void _verifyReceipt() => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => ReceiptVerifyScreen(cnic: widget.cnic, name: '${_d?['identity']?['name'] ?? ''}')),
+      );
+
   Future<void> _reportIssue() async {
     String category = 'Wrong record';
     final desc = TextEditingController();
@@ -295,6 +301,8 @@ class _UserDashboardState extends State<UserDashboard> {
                 Expanded(child: _serviceBtn('Declare Asset', Icons.add_box, _declareAsset)),
                 const SizedBox(width: 10),
                 Expanded(child: _serviceBtn('Report Issue', Icons.report_problem, _reportIssue)),
+                const SizedBox(width: 10),
+                Expanded(child: _serviceBtn('Verify Receipt', Icons.qr_code_scanner, _verifyReceipt)),
               ]),
               _miniStream('My Declarations', Supa.declarations(cnic: widget.cnic),
                   (r) => '${r['asset_type']} · ${(r['description'] ?? '')}'),

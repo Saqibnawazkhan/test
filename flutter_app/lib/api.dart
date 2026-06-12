@@ -70,10 +70,26 @@ class Api {
   static Future<Map<String, dynamic>> erMetrics() async => await _get('/er-metrics');
   static Future<List<dynamic>> search(String q) async => await _get('/search', {'q': q});
   static Future<Map<String, dynamic>> network({int limit = 35}) async => await _get('/network', {'limit': '$limit'});
+  static Future<Map<String, dynamic>> family(String cnic) async => await _get('/person/$cnic/family');
+
+  // ---- POS verification / turnover reconciliation ----
+  static Future<Map<String, dynamic>> posBusinesses(String q) async =>
+      await _get('/pos/businesses', q.isEmpty ? null : {'q': q});
+  static Future<Map<String, dynamic>> posVerify(String cnic) async => await _get('/pos/verify/$cnic');
+
+  /// Direct URL to the downloadable findings-driven audit report PDF.
+  static String auditReportUrl(String cnic) => '${Config.apiBase}/person/$cnic/audit-report';
+
+  /// Direct URL to the downloadable Show-Cause Notice PDF (letter to the taxpayer).
+  static String noticeUrl(String cnic) => '${Config.apiBase}/person/$cnic/notice-pdf';
 
   /// On approval, persist a declared asset into the record + recompute the score.
   static Future<dynamic> approveDeclaration(String cnic, String assetType, String description, num value,
           {Map<String, dynamic>? details, int? declId}) async =>
       await _post('/declarations/approve',
           {'cnic': cnic, 'asset_type': assetType, 'description': description, 'value': value, 'details': details ?? {}, 'decl_id': declId ?? 0});
+
+  /// On accepting an explanation, treat the asset value as accounted-for + recompute score.
+  static Future<dynamic> approveExplanation(String cnic, num assetValue, {int? explId}) async =>
+      await _post('/explanations/approve', {'cnic': cnic, 'asset_value': assetValue, 'expl_id': explId ?? 0});
 }

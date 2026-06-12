@@ -10,17 +10,18 @@ class AdminInbox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Column(children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
           child: Row(children: [
-            const Expanded(child: PageHeader('Citizen Submissions', 'Inbox', desc: 'Live requests, declarations and disputes from citizens.')),
+            const Expanded(child: PageHeader('Citizen Submissions', 'Inbox', desc: 'Live requests, declarations, explanations and disputes.')),
           ]),
         ),
         const TabBar(
+          isScrollable: true,
           labelColor: C.green, unselectedLabelColor: C.text3, indicatorColor: C.green,
-          tabs: [Tab(text: 'Requests'), Tab(text: 'Declarations'), Tab(text: 'Issues')],
+          tabs: [Tab(text: 'Requests'), Tab(text: 'Declarations'), Tab(text: 'Explanations'), Tab(text: 'Issues')],
         ),
         Expanded(
           child: TabBarView(children: [
@@ -47,6 +48,19 @@ class AdminInbox extends StatelessWidget {
                 await Supa.resolveDeclaration(r['id'], r['cnic'], r['name'], 'Approved');
               },
               onReject: (r) => Supa.resolveDeclaration(r['id'], r['cnic'], r['name'], 'Rejected'),
+              approveLabel: 'Accept', rejectLabel: 'Reject',
+            ),
+            _StreamList(
+              stream: Supa.explanations(),
+              title: (r) => '${r['name'] ?? r['cnic']}',
+              subtitle: (r) => '${r['asset_label'] ?? r['asset_type']} · ${rs(r['asset_value'])}'
+                  '\nSource: ${r['source']}${(r['tax_paid'] == true) ? ' · tax paid' : ' · tax NOT paid'}'
+                  '${(r['remarks'] ?? '').toString().isNotEmpty ? '\n“${r['remarks']}”' : ''}',
+              onApprove: (r) async {
+                await Api.approveExplanation(r['cnic'], (r['asset_value'] ?? 0) as num, explId: r['id'] as int?);
+                await Supa.resolveExplanation(r['id'], r['cnic'], r['name'], 'Accepted');
+              },
+              onReject: (r) => Supa.resolveExplanation(r['id'], r['cnic'], r['name'], 'Rejected'),
               approveLabel: 'Accept', rejectLabel: 'Reject',
             ),
             _StreamList(

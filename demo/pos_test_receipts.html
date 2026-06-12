@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TaxNet — POS Test Receipts (scan with the app)</title>
+<style>
+  :root { --ink:#101926; --green:#1AA978; --red:#C62828; --line:#d8dee6; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; color: var(--ink); margin: 0; background:#f4f7fa; }
+  header { background: var(--green); color:#fff; padding: 18px 24px; }
+  header h1 { margin: 0 0 4px; font-size: 20px; }
+  header p { margin: 0; opacity: .92; font-size: 13px; }
+  .note { max-width: 980px; margin: 16px auto 0; padding: 0 16px; font-size: 13px; color:#445; }
+  .grid { max-width: 980px; margin: 14px auto 40px; padding: 0 16px;
+          display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius: 12px; padding: 12px; text-align: center; }
+  .card img { width: 100%; max-width: 160px; height: auto; image-rendering: pixelated; }
+  .rid { font-weight: 700; font-size: 13px; margin-top: 6px; }
+  .val { font-family: ui-monospace, monospace; font-size: 11px; color:#667; word-break: break-all; margin-top: 2px; }
+  .tag { display:inline-block; margin-top:6px; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:700; }
+  .ok  { background: rgba(26,169,120,.14); color: var(--green); }
+  .bad { background: rgba(198,40,40,.12); color: var(--red); }
+  @media print { header { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .grid{ gap:8px } }
+</style>
+</head>
+<body>
+<header>
+  <h1>TaxNet — POS Test Receipts</h1>
+  <p>Open this on a laptop/second screen (or print it). In the app: Citizen → Services → Verify Receipt → Scan, then point the camera at a code below.</p>
+</header>
+<div class="note">
+  <b>What to expect:</b> a valid FBR invoice is exactly <b>13 digits</b> → the app shows <b>Verified ✓</b>.
+  Codes with letters or too few digits are <b>fake/unreported</b> → the app shows <b>Not verified</b> and offers “Report this shop”.
+  (The green/red tags below are a presenter cheat-sheet — hide this strip if demoing live.)
+</div>
+<div class="grid" id="grid"></div>
+
+<script>
+  // 14 valid (13-digit) + 6 fake (letters / too short)
+  const valid = [
+    "4210198765432","3520112345678","1730155667788","4210133344556","3410177889900",
+    "6110122003344","3730199887766","4210166554433","3520155443322","1730188776655",
+    "3410100112233","6110144556677","4210177665544","3730122113344"
+  ];
+  const fake = [
+    "ABC1234XYZ",     // letters
+    "12345",          // too short
+    "FAKE-RCPT-9",    // letters + dash
+    "9988",           // too short
+    "7X3Y9Z2",        // letters
+    "100200"          // 6 digits, too short
+  ];
+  // interleave so fakes aren't all at the end
+  const items = [];
+  let vi = 0, fi = 0;
+  for (let i = 0; i < 20; i++) {
+    const useFake = (i % 3 === 2) && fi < fake.length;   // ~every 3rd is fake
+    if (useFake) items.push({ v: fake[fi++], ok: false });
+    else if (vi < valid.length) items.push({ v: valid[vi++], ok: true });
+    else if (fi < fake.length) items.push({ v: fake[fi++], ok: false });
+  }
+  const grid = document.getElementById('grid');
+  items.forEach((it, i) => {
+    const src = "https://api.qrserver.com/v1/create-qr-code/?size=170x170&margin=6&data=" + encodeURIComponent(it.v);
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.innerHTML =
+      '<img src="' + src + '" alt="QR">' +
+      '<div class="rid">Receipt #' + String(i + 1).padStart(2, '0') + '</div>' +
+      '<div class="val">' + it.v + '</div>' +
+      '<span class="tag ' + (it.ok ? 'ok' : 'bad') + '">' + (it.ok ? 'VALID' : 'FAKE') + '</span>';
+    grid.appendChild(div);
+  });
+</script>
+</body>
+</html>

@@ -192,6 +192,49 @@ def approve_declaration(d: DeclApprove):
         return {"ok": True, "new_score": fused, "zone": zone, "own_assets": own}
     return {"ok": True}
 
+def _recompute_score(cnic, own_assets):
+    """Recompute & persist the deviation score for a given own-asset total."""
+    s = one("select * from deviation_scores where cnic=?", (cnic,))
+    if not s:
+        return {"ok": True}
+    declared = max((s["declared"] or 0), 50000)
+    own = max(0.0, own_assets)
+    hidden = s["hidden_assets"] or 0
+    life = s["lifestyle"] or 0
+    gnn = s["gnn_prob"] or 0
+    sq = lambda r: max(0.0, min(1.0, (_math.log10(max(r, 1)) - 1) / 1.5))
+    asset_sig = sq(own / declared)
+    struct_sig = sq(hidden / declared) if hidden > 0 else 0
+    life_sig = max(0.0, min(1.0, (life / declared - 0.2) / 0.8))
+    tr = one("select filer_status from tax_returns where cnic=?", (cnic,))
+    nonfiler = 0 if (tr and tr["filer_status"] == "Filer") else 1
+    rule = 100 * (0.35 * asset_sig + 0.30 * struct_sig + 0.20 * life_sig + 0.15 * nonfiler)
+    fused = round(100 * (0.5 * rule / 100 + 0.5 * gnn), 1)
+    zone = "Red" if fused >= 55 else "Yellow" if fused >= 22 else "Green"
+    execute("update deviation_scores set own_assets=?, rule_score=?, deviation_score=?, zone=? where cnic=?",
+            (own, round(rule, 1), fused, zone, cnic))
+    return {"ok": True, "new_score": fused, "zone": zone, "own_assets": own}
+
+class ExplApprove(BaseModel):
+    cnic: str
+    asset_value: float = 0
+    expl_id: int = 0
+
+@app.post("/explanations/approve")
+def approve_explanation(d: ExplApprove):
+    """Accept a citizen's explanation for an existing asset: the explained value is
+    treated as accounted-for, lowering the deviation score. Idempotent."""
+    if d.expl_id:
+        execute("create table if not exists processed_explanations(eid integer primary key)")
+        if one("select eid from processed_explanations where eid=?", (d.expl_id,)):
+            return {"ok": True, "duplicate": True}
+        execute("insert into processed_explanations(eid) values(?)", (d.expl_id,))
+    s = one("select own_assets from deviation_scores where cnic=?", (d.cnic,))
+    if not s:
+        return {"ok": True}
+    own = max(0.0, (s["own_assets"] or 0) - float(d.asset_value or 0))
+    return _recompute_score(d.cnic, own)
+
 @app.get("/stats")
 def stats():
     """Admin dashboard summary cards."""
@@ -360,6 +403,185 @@ def notice(cnic: str):
         "be amended under the above section. — Inland Revenue Officer, FBR."
     )
     return {"cnic": cnic, "recovery_potential": int(rec), "notice": text}
+
+def _report_data(cnic: str):
+    """Assemble the full taxpayer dict consumed by the audit report and notice PDFs."""
+    p = one("select * from persons where cnic=?", (cnic,))
+    if not p:
+        raise HTTPException(404, "not found")
+    s = one("select * from deviation_scores where cnic=?", (cnic,))
+    t = one("select * from tax_returns where cnic=?", (cnic,))
+    elec = one("select sum(bill_amount) v from electricity where customer_cnic=?", (cnic,))
+    declared = (s["declared"] if s else 0) or 0
+    assets_v = ((s["own_assets"] or 0) + (s["hidden_assets"] or 0)) if s else 0
+    rec = max(0, (assets_v + ((s["lifestyle"] or 0) if s else 0) - declared) * 0.1)
+    return {
+        "cnic": cnic, "name": p["name"], "father": p["father_husband_name"],
+        "address": p["present_address"], "district": p["district"],
+        "ntn": t["ntn"] if t else None, "tax_year": 2024,
+        "declared_income": (t["declared_income"] if t else 0), "tax_paid": (t["tax_paid"] if t else 0),
+        "filer_status": (t["filer_status"] if t else None), "source": (t["source_of_income"] if t else None),
+        "score": (s["deviation_score"] if s else 0), "zone": (s["zone"] if s else "N/A"),
+        "gnn_prob": (s["gnn_prob"] if s else 0),
+        "declared": declared, "own_assets": (s["own_assets"] if s else 0),
+        "hidden_assets": (s["hidden_assets"] if s else 0), "lifestyle": (s["lifestyle"] if s else 0),
+        "recovery": rec,
+        "assets": {
+            "vehicles": rows("select engine_cc, value from vehicles where owner_cnic=?", (cnic,)),
+            "properties": rows("select market_value from properties where owner_cnic=?", (cnic,)),
+            "bank_accounts": rows("select balance from bank_accounts where customer_cnic=?", (cnic,)),
+            "stocks": rows("select market_value from stocks where holder_cnic=?", (cnic,)),
+            "travel_count": one("select count(*) n from travel where cnic=?", (cnic,))["n"],
+            "electricity_monthly": (elec["v"] or 0) / 12 if elec and elec["v"] else 0,
+        },
+    }
+
+def _pdf_response(pdf: bytes, prefix: str, cnic: str):
+    from fastapi.responses import Response
+    fname = "{}_{}.pdf".format(prefix, "".join(ch for ch in cnic if ch.isdigit()))
+    return Response(content=pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": "attachment; filename={}".format(fname)})
+
+@app.get("/person/{cnic}/audit-report")
+def audit_report_pdf(cnic: str):
+    """Findings-driven FBR audit report as a downloadable PDF."""
+    from audit_report import build_audit_pdf
+    return _pdf_response(build_audit_pdf(_report_data(cnic)), "audit", cnic)
+
+@app.get("/person/{cnic}/notice-pdf")
+def notice_pdf(cnic: str):
+    """Findings-driven Show-Cause Notice (statutory letter to the taxpayer) as a PDF."""
+    from audit_report import build_notice_pdf
+    return _pdf_response(build_notice_pdf(_report_data(cnic)), "notice", cnic)
+
+@app.get("/person/{cnic}/family")
+def family(cnic: str):
+    """Ego-centric family tree with each member's assets — surfaces benami fronts
+    (relatives, esp. female, holding wealth with little/no income of their own).
+    Relationships inferred from father_husband_name links + gender/age."""
+    ego = one("select * from persons where cnic=?", (cnic,))
+    if not ego:
+        raise HTTPException(404, "not found")
+
+    def age(dob):
+        try:
+            return 2025 - int(str(dob)[:4])
+        except (TypeError, ValueError):
+            return None
+
+    def own(c):
+        v = one("select coalesce(sum(value),0) s from vehicles where owner_cnic=?", (c,))["s"]
+        p = one("select coalesce(sum(market_value),0) s from properties where owner_cnic=?", (c,))["s"]
+        b = one("select coalesce(sum(balance),0) s from bank_accounts where customer_cnic=?", (c,))["s"]
+        st = one("select coalesce(sum(market_value),0) s from stocks where holder_cnic=?", (c,))["s"]
+        return (v or 0) + (p or 0) + (b or 0) + (st or 0)
+
+    def card(p, relation):
+        t = one("select declared_income,filer_status from tax_returns where cnic=?", (p["cnic"],))
+        s = one("select deviation_score,zone from deviation_scores where cnic=?", (p["cnic"],))
+        oa = own(p["cnic"])
+        inc = (t["declared_income"] if t else 0) or 0
+        filer = (t["filer_status"] if t else "Non-Filer") or "Non-Filer"
+        front = relation in ("Wife", "Daughter", "Son", "Husband") and oa > 3_000_000 and (inc == 0 or oa > inc * 10)
+        return {"cnic": p["cnic"], "name": p["name"], "gender": p["gender"], "relation": relation,
+                "age": age(p["dob"]), "own_assets": oa, "declared_income": inc, "filer_status": filer,
+                "zone": (s["zone"] if s else "-"), "deviation_score": (s["deviation_score"] if s else 0),
+                "possible_front": bool(front)}
+
+    members = [card(ego, "Self")]
+    edges = []
+    fam_id = ego["family_tree_id"]
+
+    # parent / head — the person named as the ego's father or husband
+    parent = None
+    if ego["father_husband_name"]:
+        parent = one("select * from persons where name=? and family_tree_id=? and cnic!=? limit 1",
+                     (ego["father_husband_name"], fam_id, cnic)) \
+            or one("select * from persons where name=? and cnic!=? limit 1", (ego["father_husband_name"], cnic))
+    if parent:
+        members.append(card(parent, "Father / Husband"))
+        edges.append({"from": parent["cnic"], "to": cnic})
+
+    # dependents / fronts — people who name the ego as their father/husband
+    # (restricted to the same family tree so we don't match unrelated namesakes)
+    ego_age = age(ego["dob"]) or 40
+    for d in rows("select * from persons where father_husband_name=? and family_tree_id=? and cnic!=? limit 12",
+                  (ego["name"], fam_id, cnic)):
+        gap = ego_age - (age(d["dob"]) or 0)
+        if d["gender"] == "F":
+            rel = "Daughter" if gap >= 16 else "Wife"
+        else:
+            rel = "Son" if gap >= 16 else "Brother"
+        members.append(card(d, rel))
+        edges.append({"from": cnic, "to": d["cnic"]})
+
+    fronts = [m for m in members if m["possible_front"]]
+    return {
+        "ego": cnic,
+        "members": members,
+        "edges": edges,
+        "total_family_assets": sum(m["own_assets"] for m in members),
+        "front_count": len(fronts),
+        "hidden_in_fronts": sum(m["own_assets"] for m in fronts),
+    }
+
+@app.get("/pos/businesses")
+def pos_businesses(q: str = Query(None), limit: int = Query(40, le=200)):
+    """Registered businesses (for POS turnover reconciliation), ranked by bank turnover."""
+    where = "t.source_of_income like '%usiness%'"
+    args = []
+    if q:
+        where += " and (p.name like ? or p.cnic like ? or t.business_desc like ?)"
+        args += [f"%{q}%", f"%{q}%", f"%{q}%"]
+    data = rows(f"""select p.cnic, p.name, p.district, t.business_desc, t.declared_income, t.ntn,
+                    coalesce((select sum(turnover) from bank_accounts where customer_cnic=p.cnic),0) turnover,
+                    s.zone, s.deviation_score
+                    from tax_returns t join persons p on p.cnic=t.cnic
+                    left join deviation_scores s on s.cnic=p.cnic
+                    where {where} order by turnover desc limit ?""", (*args, limit))
+    return {"results": data}
+
+@app.get("/pos/verify/{cnic}")
+def pos_verify(cnic: str):
+    """Simulated FBR POS verification + turnover reconciliation for one business.
+    Compares observed bank turnover (true sales proxy) against POS-reported sales;
+    the gap is under-reported turnover with recoverable sales tax (GST 17%)."""
+    p = one("select * from persons where cnic=?", (cnic,))
+    if not p:
+        raise HTTPException(404, "not found")
+    t = one("select * from tax_returns where cnic=?", (cnic,))
+    s = one("select zone,deviation_score from deviation_scores where cnic=?", (cnic,))
+    turnover = one("select coalesce(sum(turnover),0) v from bank_accounts where customer_cnic=?", (cnic,))["v"] or 0
+    declared = (t["declared_income"] if t else 0) or 0
+    zone = (s["zone"] if s else "Green")
+    seed = sum((i + 1) * ord(ch) for i, ch in enumerate(cnic))     # deterministic per CNIC
+    integrated = (zone != "Red") and (seed % 5 != 0)               # Red / unlucky -> not integrated
+    frac = {"Green": 0.9, "Yellow": 0.6, "Red": 0.35}.get(zone, 0.7)
+    frac = min(0.98, max(0.2, frac + ((seed % 11) - 5) / 100.0))
+    if turnover <= 0:
+        turnover = max(declared * 4, 5_000_000)
+    reported = round(turnover * frac) if integrated else 0
+    unreported = max(0, turnover - reported)
+    recovery = round(unreported * 0.17)                            # GST 17%
+    invoices = []
+    for i in range(4):
+        amt = 5000 + ((seed * (i + 3)) % 45000)
+        invoices.append({"invoice_no": "FBR-{}-{}".format(cnic[-4:], 1000 + i * 7 + seed % 900),
+                         "amount": amt, "sales_tax": round(amt * 0.17),
+                         "status": "Reported" if (integrated and (seed + i) % 4 != 0) else "Not reported"})
+    if not integrated:
+        verdict = "Business not integrated with FBR POS system"
+    elif unreported < turnover * 0.15:
+        verdict = "Compliant - POS sales reconciled"
+    else:
+        verdict = "Under-reporting - {}% of sales not reported to FBR".format(round(unreported / turnover * 100))
+    return {"cnic": cnic, "name": p["name"], "ntn": (t["ntn"] if t else None),
+            "business": (t["business_desc"] if t else "Business"), "district": p["district"],
+            "zone": zone, "deviation_score": (s["deviation_score"] if s else 0),
+            "declared_income": declared, "bank_turnover": turnover, "pos_integrated": integrated,
+            "pos_reported": reported, "unreported": unreported, "recovery": recovery,
+            "reported_pct": round(reported / turnover * 100) if turnover else 0,
+            "verdict": verdict, "invoices": invoices}
 
 @app.get("/er-metrics")
 def er_metrics():

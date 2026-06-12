@@ -190,10 +190,10 @@ class PageHeader extends StatelessWidget {
 /// money — Pakistani Cr/Lac formatting, e.g. "₨ 1.71 Cr"
 String rs(num? v) {
   final n = (v ?? 0).toDouble();
-  if (n.abs() >= 1e12) return '₨ ${(n / 1e12).toStringAsFixed(2)}T';
-  if (n.abs() >= 1e7) return '₨ ${(n / 1e7).toStringAsFixed(2)} Cr';
-  if (n.abs() >= 1e5) return '₨ ${(n / 1e5).toStringAsFixed(2)} Lac';
-  return '₨ ${n.toStringAsFixed(0)}';
+  if (n.abs() >= 1e12) return 'Rs ${(n / 1e12).toStringAsFixed(2)}T';
+  if (n.abs() >= 1e7) return 'Rs ${(n / 1e7).toStringAsFixed(2)} Cr';
+  if (n.abs() >= 1e5) return 'Rs ${(n / 1e5).toStringAsFixed(2)} Lac';
+  return 'Rs ${n.toStringAsFixed(0)}';
 }
 
 // ---- custom painters ----

@@ -4,6 +4,7 @@ import 'api.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/knowledge_graph_screen.dart';
 import 'screens/investigation_screens.dart';
+import 'screens/pos_screen.dart';
 import 'screens/ops_screens.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/admin_inbox.dart';
@@ -29,6 +30,7 @@ const _modules = [
   _Module('entity', 'Entity Resolution', Icons.account_tree_outlined),
   _Module('risk', 'Risk Analysis', Icons.speed_outlined),
   _Module('audit', 'Audit Trail', Icons.fact_check_outlined, '14'),
+  _Module('pos', 'POS Verification', Icons.qr_code_scanner_outlined),
   _Module('analytics', 'Reports', Icons.bar_chart_outlined),
   _Module('leaderboard', 'Leaderboard', Icons.leaderboard_outlined),
   _Module('inbox', 'Citizen Inbox', Icons.move_to_inbox_outlined),
@@ -103,6 +105,8 @@ class _AdminShellState extends State<AdminShell> {
         return const RiskAnalysisScreen();
       case 'audit':
         return const AuditTrailScreen();
+      case 'pos':
+        return const POSVerifyScreen();
       case 'analytics':
         return const AnalyticsScreen2();
       case 'leaderboard':

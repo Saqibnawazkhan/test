@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../api.dart';
 import '../theme.dart';
+import 'family_tree_screen.dart';
 
 Future<String> _topCnic() async {
   final lb = await Api.leaderboard(limit: 1);
@@ -122,13 +125,128 @@ class _RiskAnalysisScreenState extends State<RiskAnalysisScreen> {
 }
 
 // =========================== AUDIT TRAIL ===========================
+/// The audit module: a searchable list of flagged entities. Pick one to open its
+/// full investigation report — no more auto-jumping to an arbitrary CNIC.
 class AuditTrailScreen extends StatefulWidget {
   const AuditTrailScreen({super.key});
   @override
-  State<AuditTrailScreen> createState() => _AuditTrailScreenState();
+  State<AuditTrailScreen> createState() => _AuditTrailListState();
 }
 
-class _AuditTrailScreenState extends State<AuditTrailScreen> {
+class _AuditTrailListState extends State<AuditTrailScreen> {
+  final _qc = TextEditingController();
+  List<dynamic> _people = [];
+  bool _loading = true;
+  String _q = '';
+  Timer? _deb;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _deb?.cancel();
+    _qc.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final r = await Api.persons(q: _q.isEmpty ? null : _q, limit: 50);
+      setState(() {
+        _people = (r['results'] as List?) ?? [];
+        _loading = false;
+      });
+    } catch (_) {
+      setState(() => _loading = false);
+    }
+  }
+
+  void _onSearch(String v) {
+    _q = v.trim();
+    _deb?.cancel();
+    _deb = Timer(const Duration(milliseconds: 350), _load);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(padding: const EdgeInsets.fromLTRB(16, 18, 16, 70), children: [
+      const PageHeader('Explainable AI', 'Audit Trail', desc: 'Select a flagged entity to open its full investigation report.'),
+      const SizedBox(height: 12),
+      GlassCard(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+        child: Row(children: [
+          const Icon(Icons.search, color: C.text3, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: _qc,
+              onChanged: _onSearch,
+              decoration: const InputDecoration(border: InputBorder.none, hintText: 'Search by CNIC or name...'),
+            ),
+          ),
+        ]),
+      ),
+      const SizedBox(height: 14),
+      if (_loading)
+        const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator(color: C.green)))
+      else if (_people.isEmpty)
+        Padding(padding: const EdgeInsets.all(40), child: Center(child: Text('No matching entities.', style: body(13, c: C.text3))))
+      else
+        ..._people.map(_personRow),
+    ]);
+  }
+
+  Widget _personRow(dynamic p) {
+    final zone = '${p['zone'] ?? ''}';
+    final dev = (p['deviation_score'] ?? 0);
+    final String name = '${p['name'] ?? ''}';
+    final initials = name.split(' ').where((s) => s.isNotEmpty).map((s) => s[0]).take(2).join();
+    final sev = zone == 'Red' ? 'critical' : zone == 'Yellow' ? 'high' : 'low';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AuditReportScreen(cnic: p['cnic']))),
+        child: GlassCard(
+          child: Row(children: [
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(color: C.zone(zone).withOpacity(0.14), borderRadius: BorderRadius.circular(12)),
+              child: Center(child: Text(initials, style: display(15, c: C.zone(zone)))),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(name, style: body(13.5, w: FontWeight.w700)),
+                Text('${p['cnic']} · ${p['district'] ?? ''}', style: mono(10.5, c: C.text3)),
+              ]),
+            ),
+            const SizedBox(width: 8),
+            Tag(zone.toUpperCase(), sev: sev),
+            const SizedBox(width: 10),
+            Text('${(dev as num).toInt()}', style: mono(18, w: FontWeight.w700, c: C.zone(zone))),
+            const Icon(Icons.chevron_right, color: C.text3),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+/// Full investigation report for one specific entity (opened from the Audit Trail list).
+class AuditReportScreen extends StatefulWidget {
+  final String cnic;
+  const AuditReportScreen({required this.cnic, super.key});
+  @override
+  State<AuditReportScreen> createState() => _AuditReportScreenState();
+}
+
+class _AuditReportScreenState extends State<AuditReportScreen> {
   Map<String, dynamic>? _d;
   List<dynamic> _audit = [];
   Map<String, dynamic>? _notice;
@@ -140,7 +258,7 @@ class _AuditTrailScreenState extends State<AuditTrailScreen> {
   }
 
   Future<void> _load() async {
-    final cnic = await _topCnic();
+    final cnic = widget.cnic;
     final d = await Api.person(cnic);
     final n = await Api.notice(cnic);
     setState(() {
@@ -153,7 +271,13 @@ class _AuditTrailScreenState extends State<AuditTrailScreen> {
   @override
   Widget build(BuildContext context) {
     final d = _d;
-    if (d == null) return const Center(child: CircularProgressIndicator(color: C.green));
+    return Scaffold(
+      appBar: AppBar(title: const Text('Investigation Report'), backgroundColor: C.bg2, foregroundColor: C.text, elevation: 0.5),
+      body: d == null ? const Center(child: CircularProgressIndicator(color: C.green)) : _buildReport(d),
+    );
+  }
+
+  Widget _buildReport(Map<String, dynamic> d) {
     final id = d['identity'], sc = d['score'];
     final dev = (sc?['deviation_score'] ?? 0).toDouble();
     final String name = '${id['name'] ?? ''}';
@@ -246,9 +370,43 @@ class _AuditTrailScreenState extends State<AuditTrailScreen> {
               label: Text('View 122(5A) Notice', style: body(13, w: FontWeight.w700, c: const Color(0xFF08130E))),
             ),
           ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(foregroundColor: C.blue, side: const BorderSide(color: C.blue), padding: const EdgeInsets.all(12)),
+              onPressed: _downloadAudit,
+              icon: const Icon(Icons.picture_as_pdf),
+              label: Text('Download Full Audit Report (PDF)', style: body(13, w: FontWeight.w700, c: C.blue)),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(foregroundColor: C.critical, side: const BorderSide(color: C.critical), padding: const EdgeInsets.all(12)),
+              onPressed: () {
+                final cnic = '${_d?['identity']?['cnic'] ?? ''}';
+                if (cnic.isNotEmpty) Navigator.push(context, MaterialPageRoute(builder: (_) => FamilyTreeScreen(cnic: cnic)));
+              },
+              icon: const Icon(Icons.account_tree),
+              label: Text('View Family & Asset Network', style: body(13, w: FontWeight.w700, c: C.critical)),
+            ),
+          ),
         ]),
       ),
     ]);
+  }
+
+  Future<void> _downloadAudit() async {
+    final cnic = '${_d?['identity']?['cnic'] ?? ''}';
+    if (cnic.isEmpty) return;
+    final ok = await launchUrl(Uri.parse(Api.auditReportUrl(cnic)), mode: LaunchMode.externalApplication);
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open the report — is the backend running?')),
+      );
+    }
   }
 
   void _showNotice() {
@@ -258,10 +416,30 @@ class _AuditTrailScreenState extends State<AuditTrailScreen> {
         backgroundColor: C.bg2,
         child: Padding(
           padding: const EdgeInsets.all(18),
-          child: SingleChildScrollView(child: SelectableText(_notice?['notice'] ?? '', style: mono(11.5, c: C.text))),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Flexible(child: SingleChildScrollView(child: SelectableText(_notice?['notice'] ?? '', style: mono(11.5, c: C.text)))),
+            const SizedBox(height: 14),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(backgroundColor: C.blue, foregroundColor: Colors.white, padding: const EdgeInsets.all(12)),
+              onPressed: _downloadNotice,
+              icon: const Icon(Icons.picture_as_pdf),
+              label: Text('Download Notice (PDF)', style: body(13, w: FontWeight.w700, c: Colors.white)),
+            ),
+          ]),
         ),
       ),
     );
+  }
+
+  Future<void> _downloadNotice() async {
+    final cnic = '${_d?['identity']?['cnic'] ?? ''}';
+    if (cnic.isEmpty) return;
+    final ok = await launchUrl(Uri.parse(Api.noticeUrl(cnic)), mode: LaunchMode.externalApplication);
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open the notice — is the backend running?')),
+      );
+    }
   }
 }
 
