@@ -282,7 +282,14 @@ def person(cnic: str):
         "directorships": rows("""select d.ntn, c.name, d.role, d.pct from directorships d
                                  left join companies c on c.ntn=d.ntn where d.person_cnic=?""", (cnic,)),
     }
-    audit = score["audit_trail"].split(" | ") if score and score.get("audit_trail") else []
+    audit_raw = score["audit_trail"] if score and score.get("audit_trail") else ""
+    if not tax and audit_raw:
+        # True non-filer: the 50,000 is an internal math floor, not a declaration. Show it honestly.
+        import re as _re
+        audit_raw = audit_raw.replace("Declared income+tax: PKR 50,000  [NON-FILER / inactive on ATL]",
+                                      "No income tax return on record (Non-Filer, inactive on ATL)")
+        audit_raw = _re.sub(r"\(~[\d,]+x declared\)", "(income undeclared)", audit_raw)
+    audit = audit_raw.split(" | ") if audit_raw else []
     return {"identity": p, "tax": tax, "score": score, "audit_trail": audit, "assets": assets}
 
 @app.get("/person/{cnic}/graph")
@@ -582,6 +589,56 @@ def pos_verify(cnic: str):
             "pos_reported": reported, "unreported": unreported, "recovery": recovery,
             "reported_pct": round(reported / turnover * 100) if turnover else 0,
             "verdict": verdict, "invoices": invoices}
+
+@app.get("/tax/calculate")
+def tax_calculate(income: float = Query(...), year: str = Query("2025-26"), kind: str = Query("salaried")):
+    """FBR income-tax — deterministic, verified slabs (no AI). year: 2024-25|2025-26, kind: salaried|business."""
+    from tax_calc import compute_tax
+    return compute_tax(income, year, kind)
+
+class ChatReq(BaseModel):
+    messages: list = []          # [{role:'user'|'assistant', content:str}]
+    mode: str = "user"           # 'user' | 'admin'
+    cnic: str = ""               # admin: the taxpayer under review
+
+@app.post("/chat")
+def chat_endpoint(req: ChatReq):
+    """Grounded TaxNet assistant. Admin mode injects the taxpayer's real data so
+    the model explains (never speculates). Returns a friendly note if AI is unavailable."""
+    import json as _json
+    from chat import chat as run_chat
+    from audit_report import build_findings, declared_label
+    extra = ""
+    if req.mode == "admin" and req.cnic:
+        try:
+            d = _report_data(req.cnic)
+            findings, unexplained = build_findings(d)
+            ctx = {
+                "name": d["name"], "cnic": d["cnic"], "district": d["district"],
+                "filer_status": d["filer_status"] or "Non-Filer",
+                "declared_income": declared_label(d),
+                "identified_assets_PKR": int((d["own_assets"] or 0) + (d["hidden_assets"] or 0)),
+                "indicative_annual_expenditure_PKR": int(d["lifestyle"] or 0),
+                "deviation_score": d["score"], "risk_zone": d["zone"],
+                "gnn_anomaly_probability": round((d["gnn_prob"] or 0), 3),
+                "unexplained_amount_PKR": int(unexplained),
+                "estimated_recoverable_tax_PKR": int(d["recovery"] or 0),
+                "findings": [{"observation": f["observation"], "section": f["provision"]} for f in findings],
+            }
+            extra = ("\n\nTAXPAYER UNDER REVIEW (use ONLY these real figures; do not invent anything; "
+                     "if asked something not covered here, say it is not on record):\n" + _json.dumps(ctx, default=str))
+        except Exception:
+            pass
+    try:
+        return {"reply": run_chat(req.messages, extra)}
+    except Exception as e:
+        msg = str(e).lower()
+        if "credit balance" in msg or "credit" in msg and "low" in msg:
+            return {"reply": "The AI assistant is unavailable: the Anthropic account has no credits. "
+                             "Please add credits at console.anthropic.com to enable it.", "error": "no_credits"}
+        if "no_api_key" in msg:
+            return {"reply": "The AI assistant is not configured (missing API key).", "error": "no_api_key"}
+        return {"reply": "Sorry, the assistant is temporarily unavailable. Please try again.", "error": str(e)[:140]}
 
 @app.get("/er-metrics")
 def er_metrics():

@@ -25,11 +25,20 @@ def money(x):
         return "PKR 0"
 
 
+def declared_label(d):
+    """Honest 'declared income' label: a real figure for those who filed/recorded
+    income, or an explicit non-filer note (never the internal 50,000 math floor)."""
+    di = d.get("declared_income")
+    return money(di) if di is not None else "Non-Filer (no return on record)"
+
+
 # ----------------------------------------------------------------------------
 # Findings engine — maps a taxpayer's data to case-specific findings.
 # ----------------------------------------------------------------------------
 def build_findings(d):
-    declared = d["declared"] or 0
+    # real declared income (0 when there's no return) — NOT the 50,000 math floor
+    di = d.get("declared_income")
+    declared = di if di is not None else 0
     assets = (d["own_assets"] or 0) + (d["hidden_assets"] or 0)
     footprint = d["lifestyle"] or 0
     unexplained = max(0, assets + footprint - declared)
@@ -66,7 +75,7 @@ def build_findings(d):
     if flagged and material:
         # 2. Core mismatch — unexplained assets / expenditure
         add("Assets and expenditure materially exceed declared means", "Sec 111",
-            declared_s=money(declared), identified_s=money(assets + footprint),
+            declared_s=declared_label(d), identified_s=money(assets + footprint),
             diff_s=money(unexplained),
             narrative="Identified assets and lifestyle expenditure exceed the income declared. "
                       "The differential of {} is treated as unexplained income/assets under "
@@ -75,7 +84,7 @@ def build_findings(d):
         # 3. Under-declaration by an existing filer -> amend assessment
         if is_filer:
             add("Declared income understated; assessment requires amendment", "Sec 122(5A)",
-                declared_s=money(declared), identified_s=money(assets + footprint),
+                declared_s=declared_label(d), identified_s=money(assets + footprint),
                 diff_s=money(unexplained),
                 narrative="Definite information indicates income chargeable to tax has escaped "
                           "assessment; the assessment is liable to amendment under Section 122(5A).")
@@ -263,7 +272,7 @@ def build_audit_pdf(d):
 
     # 6. Quantification
     _section(pdf, "6.  Quantification")
-    _kv_row(pdf, "Declared income", money(declared), kw=70)
+    _kv_row(pdf, "Declared income", declared_label(d), kw=70)
     _kv_row(pdf, "Identified assets", money(assets), kw=70)
     _kv_row(pdf, "Indicative annual expenditure", money(footprint), kw=70)
     pdf.set_text_color(*RED)
@@ -383,7 +392,7 @@ def build_notice_pdf(d):
         pdf.multi_cell(0, 5,
             "Declared income: {}    |    Identified assets & expenditure: {}    |    "
             "Unexplained amount: {}    |    Estimated recoverable tax: {}".format(
-                money(declared), money(assets + footprint), money(unexplained), money(recovery)),
+                declared_label(d), money(assets + footprint), money(unexplained), money(recovery)),
             new_x="LMARGIN", new_y="NEXT")
         pdf.ln(3)
         pdf.set_font("helvetica", "", 9.5)

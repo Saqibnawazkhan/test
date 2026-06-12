@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../api.dart';
 import '../theme.dart';
 import 'family_tree_screen.dart';
+import 'chat_screen.dart';
 
 Future<String> _topCnic() async {
   final lb = await Api.leaderboard(limit: 1);
@@ -282,10 +283,14 @@ class _AuditReportScreenState extends State<AuditReportScreen> {
     final dev = (sc?['deviation_score'] ?? 0).toDouble();
     final String name = '${id['name'] ?? ''}';
     final initials = name.split(' ').where((s) => s.isNotEmpty).map((s) => s[0]).take(2).join();
+    final tax = d['tax'];
+    final declaredLabel = (tax != null && tax['declared_income'] != null)
+        ? rs(tax['declared_income'])
+        : 'no return on record (non-filer)';
     final steps = [
       ('Identity resolved', 'Linked records across silos to one canonical entity (F1 = 1.0).', C.blue, Icons.account_tree),
       ('Asset graph constructed', 'Detected vehicles, property and company holdings via the knowledge graph.', C.cyan, Icons.hub),
-      ('Lifestyle vs income modelled', 'GNN estimated footprint ${rs(sc?['own_assets'])} against declared ${rs(sc?['declared'])}.', C.green, Icons.trending_up),
+      ('Lifestyle vs income modelled', 'GNN estimated footprint ${rs(sc?['own_assets'])} against declared $declaredLabel.', C.green, Icons.trending_up),
       ('Anomaly score elevated', 'Compliance deviation reached ${dev.toInt()}/100 — flagged ${sc?['zone']}.', C.critical, Icons.warning_amber),
       ('Recommendation issued', 'Auto-drafted Section 122(5A) notice + field-audit assignment.', C.high, Icons.flag),
     ];
@@ -391,6 +396,21 @@ class _AuditReportScreenState extends State<AuditReportScreen> {
               },
               icon: const Icon(Icons.account_tree),
               label: Text('View Family & Asset Network', style: body(13, w: FontWeight.w700, c: C.critical)),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(backgroundColor: C.blue, foregroundColor: Colors.white, padding: const EdgeInsets.all(12)),
+              onPressed: () {
+                final cnic = '${_d?['identity']?['cnic'] ?? ''}';
+                if (cnic.isNotEmpty) {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(title: 'AI Copilot', mode: 'admin', cnic: cnic)));
+                }
+              },
+              icon: const Icon(Icons.auto_awesome),
+              label: Text('Ask AI about this case', style: body(13, w: FontWeight.w700, c: Colors.white)),
             ),
           ),
         ]),

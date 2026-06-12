@@ -4,6 +4,7 @@ import 'api.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/knowledge_graph_screen.dart';
 import 'screens/investigation_screens.dart';
+import 'screens/chat_screen.dart';
 import 'screens/pos_screen.dart';
 import 'screens/ops_screens.dart';
 import 'screens/notifications_screen.dart';
@@ -219,13 +220,8 @@ class _AdminShellState extends State<AdminShell> {
   void _openSearch() => showSearch(context: context, delegate: EntitySearch());
 
   void _openCopilot() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: C.bg1,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(18))),
-      builder: (_) => const CopilotSheet(),
-    );
+    // Real grounded assistant (replaces the old scripted sheet).
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatScreen(title: 'AI Copilot')));
   }
 }
 

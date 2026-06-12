@@ -7,6 +7,8 @@ import '../supa.dart';
 import 'person_detail.dart';
 import 'notifications_screen.dart';
 import 'receipt_verify_screen.dart';
+import 'tax_calculator_screen.dart';
+import 'chat_screen.dart';
 
 /// Citizen view of their own record + ability to raise a correction request.
 class UserDashboard extends StatefulWidget {
@@ -188,6 +190,8 @@ class _UserDashboardState extends State<UserDashboard> {
         MaterialPageRoute(builder: (_) => ReceiptVerifyScreen(cnic: widget.cnic, name: '${_d?['identity']?['name'] ?? ''}')),
       );
 
+  void _openTaxCalculator() => Navigator.push(context, MaterialPageRoute(builder: (_) => const TaxCalculatorScreen()));
+
   Future<void> _reportIssue() async {
     String category = 'Wrong record';
     final desc = TextEditingController();
@@ -272,7 +276,14 @@ class _UserDashboardState extends State<UserDashboard> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Tax Profile'), backgroundColor: kSeed, foregroundColor: Colors.white,
-        actions: [NotificationBell(recipient: widget.cnic)],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.smart_toy_outlined),
+            tooltip: 'AI Tax Assistant',
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatScreen(title: 'AI Tax Assistant'))),
+          ),
+          NotificationBell(recipient: widget.cnic),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _requestCorrection,
@@ -301,8 +312,12 @@ class _UserDashboardState extends State<UserDashboard> {
                 Expanded(child: _serviceBtn('Declare Asset', Icons.add_box, _declareAsset)),
                 const SizedBox(width: 10),
                 Expanded(child: _serviceBtn('Report Issue', Icons.report_problem, _reportIssue)),
-                const SizedBox(width: 10),
+              ]),
+              const SizedBox(height: 10),
+              Row(children: [
                 Expanded(child: _serviceBtn('Verify Receipt', Icons.qr_code_scanner, _verifyReceipt)),
+                const SizedBox(width: 10),
+                Expanded(child: _serviceBtn('Tax Calculator', Icons.calculate, _openTaxCalculator)),
               ]),
               _miniStream('My Declarations', Supa.declarations(cnic: widget.cnic),
                   (r) => '${r['asset_type']} · ${(r['description'] ?? '')}'),

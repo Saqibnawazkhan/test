@@ -15,12 +15,13 @@ class Api {
     return jsonDecode(utf8.decode(res.bodyBytes));
   }
 
-  static Future<dynamic> _post(String path, [Map<String, dynamic>? body, Map<String, String>? q]) async {
+  static Future<dynamic> _post(String path, [Map<String, dynamic>? body, Map<String, String>? q,
+      Duration timeout = const Duration(seconds: 30)]) async {
     final res = await http
         .post(_u(path, q),
             headers: {'Content-Type': 'application/json'},
             body: body == null ? null : jsonEncode(body))
-        .timeout(const Duration(seconds: 30));
+        .timeout(timeout);
     if (res.statusCode >= 300) throw Exception('POST $path → ${res.statusCode}');
     return jsonDecode(utf8.decode(res.bodyBytes));
   }
@@ -76,6 +77,14 @@ class Api {
   static Future<Map<String, dynamic>> posBusinesses(String q) async =>
       await _get('/pos/businesses', q.isEmpty ? null : {'q': q});
   static Future<Map<String, dynamic>> posVerify(String cnic) async => await _get('/pos/verify/$cnic');
+
+  // ---- FBR tax calculator ----
+  static Future<Map<String, dynamic>> calculateTax(num income, String year, String kind) async =>
+      await _get('/tax/calculate', {'income': '$income', 'year': year, 'kind': kind});
+
+  // ---- grounded AI assistant ----
+  static Future<Map<String, dynamic>> chat(List<Map<String, String>> messages, {String mode = 'user', String? cnic}) async =>
+      await _post('/chat', {'messages': messages, 'mode': mode, 'cnic': cnic ?? ''}, null, const Duration(seconds: 90));
 
   /// Direct URL to the downloadable findings-driven audit report PDF.
   static String auditReportUrl(String cnic) => '${Config.apiBase}/person/$cnic/audit-report';
