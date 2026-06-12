@@ -131,6 +131,26 @@ _CORRECT_COLS = {
     "income": ("tax_returns", "declared_income"), "declared_income": ("tax_returns", "declared_income"),
 }
 
+class ProfileUpdate(BaseModel):
+    name: str | None = None
+    email: str | None = None
+    mobile: str | None = None
+    address: str | None = None
+
+@app.post("/persons/{cnic}/profile")
+def update_profile(cnic: str, p: ProfileUpdate):
+    """Citizen self-service: update contact details on the record (persists immediately)."""
+    if not one("select cnic from persons where cnic=?", (cnic,)):
+        raise HTTPException(404, "person not found")
+    sets, args = [], []
+    if p.name is not None: sets.append("name=?"); args.append(p.name)
+    if p.email is not None: sets.append("email=?"); args.append(p.email)
+    if p.mobile is not None: sets.append("mobile=?"); args.append(p.mobile)
+    if p.address is not None: sets.append("present_address=?"); args.append(p.address)
+    if sets:
+        execute("update persons set {} where cnic=?".format(", ".join(sets)), (*args, cnic))
+    return {"ok": True}
+
 class Correction(BaseModel):
     field: str
     value: str

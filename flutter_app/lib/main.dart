@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'theme.dart';
 import 'supa.dart';
-import 'screens/login_screen.dart';
+import 'screens/auth_screens.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,6 +18,6 @@ class TaxNetApp extends StatelessWidget {
         title: 'TaxNet AI',
         debugShowCheckedModeBanner: false,
         theme: buildDarkTheme(),
-        home: const LoginScreen(),
+        home: const CitizenLoginScreen(),
       );
 }

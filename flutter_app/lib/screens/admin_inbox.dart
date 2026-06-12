@@ -5,12 +5,14 @@ import '../theme.dart';
 
 /// Admin inbox — live citizen submissions (requests, declarations, issues) + broadcast announcements.
 class AdminInbox extends StatelessWidget {
-  const AdminInbox({super.key});
+  final int initialTab;
+  const AdminInbox({this.initialTab = 0, super.key});
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 4,
+      initialIndex: initialTab,
       child: Column(children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),

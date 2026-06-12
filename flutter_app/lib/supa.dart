@@ -38,6 +38,28 @@ class Supa {
   static Future<void> announce(String title, String body) =>
       notify(recipient: 'all', audience: 'all', title: title, body: body, kind: 'announcement');
 
+  // ---------------- auth (demo-level: CNIC + password) ----------------
+  static Future<Map<String, dynamic>?> login(String cnic, String password) async {
+    final r = await _c.from('accounts').select().eq('cnic', cnic).eq('password', password).maybeSingle();
+    return r;
+  }
+
+  /// Returns an error message, or null on success.
+  static Future<String?> signUp({required String cnic, String? name, required String password}) async {
+    final existing = await _c.from('accounts').select('id').eq('cnic', cnic).maybeSingle();
+    if (existing != null) return 'An account with this CNIC already exists. Please sign in.';
+    await _c.from('accounts').insert({'cnic': cnic, 'name': name, 'password': password, 'role': 'citizen'});
+    return null;
+  }
+
+  /// Sync the account's display name + change password (best-effort).
+  static Future<void> updateAccount(String cnic, {String? name, String? password}) async {
+    final patch = <String, dynamic>{};
+    if (name != null) patch['name'] = name;
+    if (password != null && password.isNotEmpty) patch['password'] = password;
+    if (patch.isNotEmpty) await _c.from('accounts').update(patch).eq('cnic', cnic);
+  }
+
   // ---------------- correction requests ----------------
   static Future<void> createRequest({
     required String cnic, String? name, required String field,

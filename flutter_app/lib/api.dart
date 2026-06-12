@@ -97,6 +97,15 @@ class Api {
   static Future<dynamic> applyCorrection(String cnic, String field, String value) async =>
       await _post('/persons/$cnic/correct', {'field': field, 'value': value});
 
+  /// Citizen self-service profile update (contact details).
+  static Future<dynamic> updateProfile(String cnic, {String? name, String? email, String? mobile, String? address}) async =>
+      await _post('/persons/$cnic/profile', {
+        if (name != null) 'name': name,
+        if (email != null) 'email': email,
+        if (mobile != null) 'mobile': mobile,
+        if (address != null) 'address': address,
+      });
+
   // ---- email (Resend): notice to taxpayer + broadcast ----
   static Future<Map<String, dynamic>> emailNotice(String cnic) async =>
       Map<String, dynamic>.from(await _post('/person/$cnic/email-notice', {}, null, const Duration(seconds: 60)));

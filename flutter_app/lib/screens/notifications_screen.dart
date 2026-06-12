@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../supa.dart';
 import '../theme.dart';
+import 'admin_inbox.dart';
+import 'admin_payments_screen.dart';
 
 IconData _kindIcon(String? k) {
   switch (k) {
@@ -58,6 +60,37 @@ class NotificationBell extends StatelessWidget {
 class NotificationsScreen extends StatelessWidget {
   final String recipient;
   const NotificationsScreen({required this.recipient, super.key});
+
+  bool get _isAdmin => recipient == 'admin';
+
+  /// Mark read + jump to the relevant place based on the notification type.
+  Future<void> _open(BuildContext context, Map<String, dynamic> n) async {
+    if (n['read'] != true) await Supa.markRead(n['id'] as int);
+    if (!context.mounted) return;
+    final title = '${n['title'] ?? ''}'.toLowerCase();
+    final kind = '${n['kind'] ?? ''}';
+    void go(Widget body, String t) =>
+        Navigator.push(context, MaterialPageRoute(builder: (_) => Scaffold(appBar: AppBar(title: Text(t)), body: body)));
+    if (_isAdmin) {
+      if (title.contains('correction')) {
+        go(const AdminInbox(initialTab: 0), 'Citizen Submissions');
+      } else if (title.contains('declaration')) {
+        go(const AdminInbox(initialTab: 1), 'Citizen Submissions');
+      } else if (title.contains('explanation')) {
+        go(const AdminInbox(initialTab: 2), 'Citizen Submissions');
+      } else if (title.contains('issue')) {
+        go(const AdminInbox(initialTab: 3), 'Citizen Submissions');
+      } else if (kind == 'payment' || title.contains('payment')) {
+        go(const AdminPaymentsScreen(), 'Tax Payments');
+      }
+      // announcements: no destination
+    } else {
+      // citizen: the relevant section (payments, declarations, requests…) lives on the
+      // dashboard — return there. Announcements stay (already shown in the card).
+      if (kind != 'announcement' && kind != 'info') Navigator.pop(context);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -80,7 +113,7 @@ class NotificationsScreen extends StatelessWidget {
               final col = _kindColor(n['kind']);
               final unread = n['read'] != true;
               return GestureDetector(
-                onTap: () => Supa.markRead(n['id'] as int),
+                onTap: () => _open(context, n),
                 child: GlassCard(
                   padding: const EdgeInsets.all(14),
                   border: unread ? col.withOpacity(0.4) : C.border,

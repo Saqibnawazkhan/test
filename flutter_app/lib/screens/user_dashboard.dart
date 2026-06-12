@@ -11,6 +11,7 @@ import 'receipt_verify_screen.dart';
 import 'tax_calculator_screen.dart';
 import 'chat_screen.dart';
 import 'pay_tax_screen.dart';
+import 'profile_screen.dart';
 
 /// Citizen view of their own record + ability to raise a correction request.
 class UserDashboard extends StatefulWidget {
@@ -334,6 +335,14 @@ class _UserDashboardState extends State<UserDashboard> {
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatScreen(title: 'AI Tax Assistant'))),
           ),
           NotificationBell(recipient: widget.cnic),
+          IconButton(
+            icon: const Icon(Icons.account_circle_outlined),
+            tooltip: 'My Profile',
+            onPressed: () async {
+              await Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen(cnic: widget.cnic)));
+              if (mounted) _load(); // reflect any profile edits
+            },
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
