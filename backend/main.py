@@ -317,7 +317,8 @@ def persons(zone: str = Query(None), district: str = Query(None), q: str = Query
     if district: where.append("p.district = ?"); args.append(district)
     if q:        where.append("(p.name like ? or p.cnic like ?)"); args += [f"%{q}%", f"%{q}%"]
     wsql = ("where " + " and ".join(where)) if where else ""
-    order = "s.deviation_score desc" if sort == "score" else "p.name"
+    order = {"score": "s.deviation_score desc", "score_asc": "s.deviation_score asc",
+             "name": "p.name", "district": "p.district, s.deviation_score desc"}.get(sort, "s.deviation_score desc")
     data = rows(f"""select p.cnic, p.name, p.district, s.deviation_score, s.zone,
                     t.declared_income, t.filer_status, s.own_assets, s.hidden_assets, {REC} as recovery
                     from persons p left join deviation_scores s on s.cnic=p.cnic
@@ -325,6 +326,53 @@ def persons(zone: str = Query(None), district: str = Query(None), q: str = Query
                     {wsql} order by {order} limit ? offset ?""", (*args, limit, offset))
     total = one(f"select count(*) n from persons p left join deviation_scores s on s.cnic=p.cnic {wsql}", tuple(args))["n"]
     return {"total": total, "results": data}
+
+class NewPerson(BaseModel):
+    cnic: str
+    name: str
+    father: str = ""
+    gender: str = "M"
+    dob: str = ""
+    district: str = ""
+    address: str = ""
+    mobile: str = ""
+    email: str = ""
+    declared_income: float = 0
+    filer_status: str = "Non-Filer"
+    vehicle_value: float = 0
+    property_value: float = 0
+    bank_balance: float = 0
+    stock_value: float = 0
+
+@app.post("/persons")
+def create_person(d: NewPerson):
+    """Admin: add a new person (NADRA identity + tax + assets) and score them."""
+    if one("select cnic from persons where cnic=?", (d.cnic,)):
+        raise HTTPException(400, "A person with this CNIC already exists.")
+    execute("""insert into persons(cnic,name,name_ur,father_husband_name,gender,dob,present_address,district,family_tree_id,mobile,email)
+               values(?,?,?,?,?,?,?,?,?,?,?)""",
+            (d.cnic, d.name, "", d.father, d.gender, d.dob, d.address, d.district, "FT-NEW", d.mobile, d.email))
+    execute("""insert into tax_returns(cnic,ntn,declared_income,tax_paid,filer_status,source_of_income)
+               values(?,?,?,?,?,?)""",
+            (d.cnic, "", d.declared_income, 0, d.filer_status, "Manual entry"))
+    if d.vehicle_value > 0:
+        execute("insert into vehicles(reg_number,owner_cnic,owner_company_ntn,owner_name,make,model,variant,engine_cc,color,value) values(?,?,?,?,?,?,?,?,?,?)",
+                (f"NEW-{_rnd.randint(1000,9999)}", d.cnic, "", d.name, "Declared", "", "", 0, "", d.vehicle_value))
+    if d.property_value > 0:
+        execute("insert into properties(fard,owner_cnic,owner_company_ntn,owner_name,khewat,khasra,mauza,district,property_type,area,market_value,dc_valuation) values(?,?,?,?,?,?,?,?,?,?,?,?)",
+                (f"NEW-{_rnd.randint(100000,999999)}", d.cnic, "", d.name, "", "", "", d.district, "Property", "", d.property_value, d.property_value * 0.5))
+    if d.bank_balance > 0:
+        execute("insert into bank_accounts(iban,customer_cnic,bank,account_type,balance,turnover) values(?,?,?,?,?,?)",
+                (f"PKNEW{_rnd.randint(10**14,10**15)}", d.cnic, "Bank", "Current", d.bank_balance, d.bank_balance))
+    if d.stock_value > 0:
+        execute("insert into stocks(cdc,holder_cnic,scrip,shares,market_value,dividend) values(?,?,?,?,?,?)",
+                (str(_rnd.randint(10**11, 10**12)), d.cnic, "STK", 0, d.stock_value, 0))
+    own = d.vehicle_value + d.property_value + d.bank_balance + d.stock_value
+    execute("""insert into deviation_scores(cnic,deviation_score,zone,gnn_prob,rule_score,declared,own_assets,hidden_assets,lifestyle,audit_trail)
+               values(?,?,?,?,?,?,?,?,?,?)""",
+            (d.cnic, 0, "Green", 0, 0, d.declared_income or 0, own, 0, 0, ""))
+    res = _recompute_score(d.cnic, own)
+    return {"ok": True, "cnic": d.cnic, "score": res.get("new_score"), "zone": res.get("zone")}
 
 @app.get("/person/{cnic}")
 def person(cnic: str):

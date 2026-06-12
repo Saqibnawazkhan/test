@@ -7,6 +7,7 @@ import 'screens/investigation_screens.dart';
 import 'screens/chat_screen.dart';
 import 'screens/pos_screen.dart';
 import 'screens/admin_payments_screen.dart';
+import 'screens/admin_records_screen.dart';
 import 'screens/ops_screens.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/admin_inbox.dart';
@@ -28,6 +29,7 @@ class _Module {
 
 const _modules = [
   _Module('dashboard', 'Dashboard', Icons.dashboard_outlined),
+  _Module('records', 'All Records', Icons.groups_outlined),
   _Module('graph', 'Knowledge Graph', Icons.hub_outlined),
   _Module('entity', 'Entity Resolution', Icons.account_tree_outlined),
   _Module('risk', 'Risk Analysis', Icons.speed_outlined),
@@ -100,6 +102,8 @@ class _AdminShellState extends State<AdminShell> {
     switch (id) {
       case 'dashboard':
         return DashboardScreen(go: _go, onSearch: _openSearch);
+      case 'records':
+        return const AllRecordsScreen();
       case 'graph':
         return const KnowledgeGraphScreen();
       case 'entity':

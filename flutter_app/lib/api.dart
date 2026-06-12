@@ -29,13 +29,17 @@ class Api {
   static Future<Map<String, dynamic>> stats() async => await _get('/stats');
 
   static Future<Map<String, dynamic>> persons(
-      {String? zone, String? district, String? q, int limit = 50, int offset = 0}) async {
+      {String? zone, String? district, String? q, String? sort, int limit = 50, int offset = 0}) async {
     final p = <String, String>{'limit': '$limit', 'offset': '$offset'};
     if (zone != null) p['zone'] = zone;
     if (district != null) p['district'] = district;
+    if (sort != null) p['sort'] = sort;
     if (q != null && q.isNotEmpty) p['q'] = q;
     return await _get('/persons', p);
   }
+
+  /// Admin: create a new person record (identity + tax + assets).
+  static Future<dynamic> createPerson(Map<String, dynamic> body) async => await _post('/persons', body);
 
   static Future<Map<String, dynamic>> person(String cnic) async => await _get('/person/$cnic');
   static Future<Map<String, dynamic>> explain(String cnic) async => await _get('/person/$cnic/explain');
