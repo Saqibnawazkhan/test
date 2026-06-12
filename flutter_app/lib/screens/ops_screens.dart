@@ -44,6 +44,7 @@ class _AnalyticsScreen2State extends State<AnalyticsScreen2> {
       const SizedBox(height: 14),
       GlassCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('Revenue Leakage Estimation', style: display(15)),
+        Text('Illustrative trend modelled from the current snapshot (demo).', style: body(10.5, c: C.text3)),
         const SizedBox(height: 14),
         SizedBox(height: 160, child: _line(filed.map((e) => e * 1.4).toList(), C.blue)),
       ])),

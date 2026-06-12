@@ -31,6 +31,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               const SectionTitle('Compliance Zones', Icons.pie_chart),
               _zoneDonut(Map<String, dynamic>.from(a['zones'] ?? {})),
               const SectionTitle('Filed vs Non-Filer Trend', Icons.show_chart),
+              Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 4),
+                child: Text('Illustrative trend modelled from the current snapshot (demo).',
+                    style: TextStyle(fontSize: 10.5, color: Colors.grey[600])),
+              ),
               _trendChart(a),
               const SectionTitle('Recovery Potential by Region', Icons.bar_chart),
               _regionBars((a['districts'] as List?) ?? []),

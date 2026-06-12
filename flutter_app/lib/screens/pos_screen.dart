@@ -180,6 +180,8 @@ class _POSResultScreenState extends State<POSResultScreen> {
           Text(integrated ? 'FBR POS INTEGRATED' : 'NOT POS-INTEGRATED', style: display(15, c: col)),
           const SizedBox(height: 4),
           Text('${r['verdict']}', textAlign: TextAlign.center, style: body(12.5, c: C.text2)),
+          const SizedBox(height: 4),
+          Text('Simulated POS verification (demo).', style: body(10, c: C.text3)),
         ]),
       ),
       const SizedBox(height: 14),

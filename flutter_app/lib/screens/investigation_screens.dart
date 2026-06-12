@@ -90,6 +90,7 @@ class _RiskAnalysisScreenState extends State<RiskAnalysisScreen> {
       GlassCard(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('Regional Risk Heatmap', style: display(15)),
+          Text('Illustrative visualization (demo).', style: body(10.5, c: C.text3)),
           const SizedBox(height: 14),
           _heatmap(),
           const SizedBox(height: 12),
@@ -445,6 +446,13 @@ class _AuditReportScreenState extends State<AuditReportScreen> {
               icon: const Icon(Icons.picture_as_pdf),
               label: Text('Download Notice (PDF)', style: body(13, w: FontWeight.w700, c: Colors.white)),
             ),
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(backgroundColor: C.green, foregroundColor: Colors.white, padding: const EdgeInsets.all(12)),
+              onPressed: _emailNotice,
+              icon: const Icon(Icons.email),
+              label: Text('Email Notice to Taxpayer', style: body(13, w: FontWeight.w700, c: Colors.white)),
+            ),
           ]),
         ),
       ),
@@ -459,6 +467,22 @@ class _AuditReportScreenState extends State<AuditReportScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not open the notice — is the backend running?')),
       );
+    }
+  }
+
+  Future<void> _emailNotice() async {
+    final cnic = '${_d?['identity']?['cnic'] ?? ''}';
+    if (cnic.isEmpty) return;
+    if (mounted) Navigator.pop(context); // close the preview dialog
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sending notice email…')));
+    try {
+      final r = await Api.emailNotice(cnic);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(r['ok'] == true ? 'Notice emailed to ${r['to']}.' : 'Could not email: ${r['reason'] ?? 'no email on record'}'),
+      ));
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Email failed — is the backend running?')));
     }
   }
 }

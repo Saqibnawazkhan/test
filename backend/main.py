@@ -122,6 +122,43 @@ def resolve_request(rid: int, decision: str = Query(..., pattern="^(Approved|Rej
     execute("update correction_requests set status=? where id=?", (decision, rid))
     return {"id": rid, "status": decision}
 
+# whitelist of citizen-correctable fields -> real column (prevents arbitrary updates)
+_CORRECT_COLS = {
+    "name": ("persons", "name"), "address": ("persons", "present_address"),
+    "present_address": ("persons", "present_address"), "mobile": ("persons", "mobile"),
+    "phone": ("persons", "mobile"), "father": ("persons", "father_husband_name"),
+    "father_husband_name": ("persons", "father_husband_name"), "district": ("persons", "district"),
+    "income": ("tax_returns", "declared_income"), "declared_income": ("tax_returns", "declared_income"),
+}
+
+class Correction(BaseModel):
+    field: str
+    value: str
+
+@app.post("/persons/{cnic}/correct")
+def apply_correction(cnic: str, c: Correction):
+    """Apply an APPROVED citizen correction to the actual record (whitelisted fields only)."""
+    key = c.field.strip().lower().replace(" ", "_")
+    target = _CORRECT_COLS.get(key)
+    if not target:
+        return {"ok": True, "applied": False, "reason": "field is not auto-correctable"}
+    table, col = target
+    if not one("select cnic from persons where cnic=?", (cnic,)):
+        raise HTTPException(404, "person not found")
+    val = c.value
+    if table == "tax_returns":
+        try:
+            val = float(c.value.replace(",", ""))
+        except ValueError:
+            return {"ok": True, "applied": False, "reason": "value not numeric"}
+        if one("select cnic from tax_returns where cnic=?", (cnic,)):
+            execute("update tax_returns set declared_income=? where cnic=?", (val, cnic))
+        else:
+            execute("insert into tax_returns(cnic, declared_income, filer_status) values(?,?,?)", (cnic, val, "Filer"))
+    else:
+        execute("update persons set {}=? where cnic=?".format(col), (val, cnic))
+    return {"ok": True, "applied": True, "field": col}
+
 # ---- approved asset declaration -> write into the record + recompute score ----
 import math as _math, random as _rnd
 
@@ -206,14 +243,20 @@ def _recompute_score(cnic, own_assets):
     asset_sig = sq(own / declared)
     struct_sig = sq(hidden / declared) if hidden > 0 else 0
     life_sig = max(0.0, min(1.0, (life / declared - 0.2) / 0.8))
-    tr = one("select filer_status from tax_returns where cnic=?", (cnic,))
+    tr = one("select filer_status, tax_paid from tax_returns where cnic=?", (cnic,))
     nonfiler = 0 if (tr and tr["filer_status"] == "Filer") else 1
     rule = 100 * (0.35 * asset_sig + 0.30 * struct_sig + 0.20 * life_sig + 0.15 * nonfiler)
-    fused = round(100 * (0.5 * rule / 100 + 0.5 * gnn), 1)
+    fused_raw = 100 * (0.5 * rule / 100 + 0.5 * gnn)
+    # Compliance credit: tax PAID against the estimated recoverable liability, proportional and
+    # capped (paying settles part of the case but does not erase undeclared-wealth signal).
+    liability = max(0.0, (own + hidden + life - declared) * 0.1)
+    paid = (tr["tax_paid"] if tr else 0) or 0
+    settle = min(1.0, paid / liability) if liability > 0 else (1.0 if paid > 0 else 0.0)
+    fused = round(fused_raw * (1 - 0.4 * settle), 1)
     zone = "Red" if fused >= 55 else "Yellow" if fused >= 22 else "Green"
     execute("update deviation_scores set own_assets=?, rule_score=?, deviation_score=?, zone=? where cnic=?",
             (own, round(rule, 1), fused, zone, cnic))
-    return {"ok": True, "new_score": fused, "zone": zone, "own_assets": own}
+    return {"ok": True, "new_score": fused, "zone": zone, "own_assets": own, "settled_pct": round(settle * 100)}
 
 class ExplApprove(BaseModel):
     cnic: str
@@ -461,6 +504,45 @@ def notice_pdf(cnic: str):
     from audit_report import build_notice_pdf
     return _pdf_response(build_notice_pdf(_report_data(cnic)), "notice", cnic)
 
+@app.post("/person/{cnic}/email-notice")
+def email_notice(cnic: str):
+    """Email the show-cause notice (HTML + PDF attachment) to the taxpayer's address."""
+    from email_send import send_email, notice_html
+    from audit_report import build_notice_pdf
+    p = one("select name, email from persons where cnic=?", (cnic,))
+    if not p:
+        raise HTTPException(404, "not found")
+    if not p["email"]:
+        return {"ok": False, "reason": "No email on record for this taxpayer."}
+    text = notice(cnic)["notice"]
+    pdf = build_notice_pdf(_report_data(cnic))
+    digits = "".join(ch for ch in cnic if ch.isdigit())
+    try:
+        res = send_email(p["email"], "FBR Show-Cause Notice (Tax Year 2024)",
+                         notice_html(p["name"], cnic, text), pdf, "notice_{}.pdf".format(digits))
+        return {"ok": True, "to": p["email"], "id": res.get("id")}
+    except Exception as e:
+        return {"ok": False, "reason": str(e)[:160]}
+
+class Broadcast(BaseModel):
+    title: str
+    body: str = ""
+
+@app.post("/broadcast/email")
+def broadcast_email(b: Broadcast):
+    """Email a broadcast to citizens who have an email on record (capped by EMAIL_SEND_CAP)."""
+    from email_send import send_email, broadcast_html
+    cap = int(os.environ.get("EMAIL_SEND_CAP", "5"))
+    recips = rows("select cnic,name,email from persons where email is not null and email!='' limit ?", (cap,))
+    sent = []
+    for r in recips:
+        try:
+            send_email(r["email"], "FBR Announcement: " + b.title, broadcast_html(b.title, b.body))
+            sent.append(r["email"])
+        except Exception:
+            pass
+    return {"ok": True, "sent": len(sent), "recipients": sent}
+
 @app.get("/person/{cnic}/family")
 def family(cnic: str):
     """Ego-centric family tree with each member's assets — surfaces benami fronts
@@ -641,14 +723,17 @@ def chat_endpoint(req: ChatReq):
         return {"reply": "Sorry, the assistant is temporarily unavailable. Please try again.", "error": str(e)[:140]}
 
 def _apply_tax_payment(cnic, amount):
-    """A successful tax payment: add to tax_paid, mark as Filer, recompute score (drops)."""
+    """A successful tax payment adds to tax_paid and recomputes the score. The score drop is
+    PROPORTIONAL to how much of the estimated liability is settled (see _recompute_score) —
+    a token payment barely moves it. Paying does NOT by itself grant Filer status (that needs
+    a filed return)."""
     amount = float(amount or 0)
     t = one("select cnic from tax_returns where cnic=?", (cnic,))
     if t:
-        execute("update tax_returns set tax_paid=coalesce(tax_paid,0)+?, filer_status='Filer' where cnic=?", (amount, cnic))
+        execute("update tax_returns set tax_paid=coalesce(tax_paid,0)+? where cnic=?", (amount, cnic))
     else:
         execute("insert into tax_returns(cnic, declared_income, tax_paid, filer_status) values(?,?,?,?)",
-                (cnic, 0, amount, "Filer"))
+                (cnic, None, amount, "Non-Filer"))
     s = one("select own_assets from deviation_scores where cnic=?", (cnic,))
     if s:
         return _recompute_score(cnic, s["own_assets"] or 0)
@@ -717,6 +802,20 @@ def pay_return(psid: str, r: str = "", err_code: str = "", validation_hash: str 
         "<div style='font-size:54px;color:{}'>{}</div><h2 style='color:{}'>{}</h2><p style='color:#445'>{}</p>"
         "<p style='color:#889'>You can return to the TaxNet app.</p></body></html>".format(
             color, mark, color, title, sub))
+
+@app.get("/payments/{psid}/receipt")
+def payment_receipt(psid: str):
+    """Downloadable tax-payment receipt PDF."""
+    from audit_report import build_payment_receipt
+    p = one("select * from payments where psid=?", (psid,))
+    if not p:
+        raise HTTPException(404, "payment not found")
+    person = one("select name from persons where cnic=?", (p["cnic"],))
+    tr = one("select ntn from tax_returns where cnic=?", (p["cnic"],))
+    d = {"psid": psid, "name": p["name"] or (person["name"] if person else ""),
+         "cnic": p["cnic"], "ntn": (tr["ntn"] if tr else None), "amount": p["amount"],
+         "txn_id": p["txn_id"], "date": p["created_at"], "status": p["status"]}
+    return _pdf_response(build_payment_receipt(d), "receipt", psid)
 
 @app.get("/payments")
 def payments_list(cnic: str = Query(None), limit: int = Query(20, le=100)):

@@ -29,7 +29,11 @@ class AdminInbox extends StatelessWidget {
               stream: Supa.requests(),
               title: (r) => '${r['name'] ?? r['cnic']}',
               subtitle: (r) => 'Field: ${r['field']}\n“${r['current_value'] ?? ''}” → “${r['requested_value']}”${(r['reason'] ?? '').toString().isNotEmpty ? '\nReason: ${r['reason']}' : ''}',
-              onApprove: (r) => Supa.resolveRequest(r['id'], r['cnic'], r['name'], 'Approved'),
+              onApprove: (r) async {
+                // apply the correction to the actual record, THEN mark approved
+                await Api.applyCorrection(r['cnic'], '${r['field']}', '${r['requested_value'] ?? ''}');
+                await Supa.resolveRequest(r['id'], r['cnic'], r['name'], 'Approved');
+              },
               onReject: (r) => Supa.resolveRequest(r['id'], r['cnic'], r['name'], 'Rejected'),
               approveLabel: 'Approve', rejectLabel: 'Reject',
             ),
@@ -107,9 +111,15 @@ class AdminInbox extends StatelessWidget {
           FilledButton(
             onPressed: () async {
               await Supa.announce(title.text, bodyC.text);
+              Map<String, dynamic> em = {};
+              try {
+                em = await Api.broadcastEmail(title.text, bodyC.text);
+              } catch (_) {}
               if (context.mounted) {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Announcement broadcast to all citizens.')));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Announced to all citizens · emailed to ${em['sent'] ?? 0}.')),
+                );
               }
             },
             child: const Text('Broadcast'),

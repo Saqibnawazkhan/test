@@ -89,7 +89,19 @@ class Api {
   // ---- tax payment (Zindigi IPG) ----
   static Future<Map<String, dynamic>> payInitiate(String cnic, num amount, {String name = '', String email = '', String mobile = ''}) async =>
       await _post('/payments/initiate', {'cnic': cnic, 'amount': amount, 'name': name, 'email': email, 'mobile': mobile});
-  static Future<List<dynamic>> payments(String cnic) async => (await _get('/payments', {'cnic': cnic}))['results'] ?? [];
+  static Future<List<dynamic>> payments({String? cnic}) async =>
+      (await _get('/payments', cnic == null ? null : {'cnic': cnic}))['results'] ?? [];
+  static String receiptUrl(String psid) => '${Config.apiBase}/payments/$psid/receipt';
+
+  /// Apply an approved citizen correction to the actual record.
+  static Future<dynamic> applyCorrection(String cnic, String field, String value) async =>
+      await _post('/persons/$cnic/correct', {'field': field, 'value': value});
+
+  // ---- email (Resend): notice to taxpayer + broadcast ----
+  static Future<Map<String, dynamic>> emailNotice(String cnic) async =>
+      Map<String, dynamic>.from(await _post('/person/$cnic/email-notice', {}, null, const Duration(seconds: 60)));
+  static Future<Map<String, dynamic>> broadcastEmail(String title, String body) async =>
+      Map<String, dynamic>.from(await _post('/broadcast/email', {'title': title, 'body': body}, null, const Duration(seconds: 60)));
 
   /// Direct URL to the downloadable findings-driven audit report PDF.
   static String auditReportUrl(String cnic) => '${Config.apiBase}/person/$cnic/audit-report';

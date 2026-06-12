@@ -343,20 +343,27 @@ class _PersonDetailState extends State<PersonDetail> {
       )),
     );
     if (ok == true) {
-      await Supa.explainAsset(
-        cnic: widget.cnic, name: _d?['identity']?['name'], assetType: type, assetLabel: label,
-        assetValue: value, source: source, taxPaid: taxPaid, remarks: remarks.text, proofUrl: proofUrl,
-      );
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Explanation submitted to FBR for review.')));
+      try {
+        await Supa.explainAsset(
+          cnic: widget.cnic, name: _d?['identity']?['name'], assetType: type, assetLabel: label,
+          assetValue: value, source: source, taxPaid: taxPaid, remarks: remarks.text, proofUrl: proofUrl,
+        );
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Explanation submitted to FBR for review.')));
+      } catch (_) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not submit — check your connection and try again.')));
+      }
     }
   }
 
   Future<String?> _pickProof() async {
-    final res = await FilePicker.platform.pickFiles(withData: true);
-    if (res == null || res.files.isEmpty) return null;
-    final f = res.files.single;
-    if (f.bytes == null) return null;
-    return Supa.uploadProof(f.name, f.bytes!);
+    try {
+      final res = await FilePicker.platform.pickFiles(withData: true);
+      if (res == null || res.files.isEmpty || res.files.single.bytes == null) return null;
+      return await Supa.uploadProof(res.files.single.name, res.files.single.bytes!);
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Proof upload failed — please try again.')));
+      return null;
+    }
   }
 
   Widget _kv(String k, String v) => Padding(

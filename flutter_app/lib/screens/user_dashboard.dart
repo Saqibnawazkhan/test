@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../api.dart';
 import '../common.dart';
 import '../supa.dart';
@@ -69,27 +70,37 @@ class _UserDashboardState extends State<UserDashboard> {
       ),
     );
     if (ok == true && field.text.isNotEmpty) {
-      await Supa.createRequest(
-        cnic: widget.cnic,
-        name: _d?['identity']?['name'],
-        field: field.text,
-        requested: value.text,
-        reason: reason.text,
+      await _submit(
+        () => Supa.createRequest(
+          cnic: widget.cnic, name: _d?['identity']?['name'],
+          field: field.text, requested: value.text, reason: reason.text,
+        ),
+        'Request sent to FBR Admin.',
       );
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Request sent to FBR Admin.')));
-      }
     }
   }
 
   Future<String?> _pickProof() async {
-    final res = await FilePicker.platform.pickFiles(withData: true);
-    if (res != null && res.files.single.bytes != null) {
-      final f = res.files.single;
-      return Supa.uploadProof(f.name, f.bytes!);
+    try {
+      final res = await FilePicker.platform.pickFiles(withData: true);
+      if (res != null && res.files.single.bytes != null) {
+        final f = res.files.single;
+        return await Supa.uploadProof(f.name, f.bytes!);
+      }
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Proof upload failed — please try again.')));
     }
     return null;
+  }
+
+  /// Run a submit and only show success if it actually succeeded; surface failures.
+  Future<void> _submit(Future<void> Function() action, String success) async {
+    try {
+      await action();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(success)));
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not submit — check your connection and try again.')));
+    }
   }
 
   // Structured fields captured per asset type so the declared asset is written
@@ -178,11 +189,13 @@ class _UserDashboardState extends State<UserDashboard> {
       }
       final val = num.tryParse(value.text.trim());
       if (val != null) details['value'] = val;
-      await Supa.declareAsset(
-        cnic: widget.cnic, name: _d?['identity']?['name'], assetType: type,
-        description: _describeAsset(type, details), value: val, details: details, proofUrl: proofUrl,
+      await _submit(
+        () => Supa.declareAsset(
+          cnic: widget.cnic, name: _d?['identity']?['name'], assetType: type,
+          description: _describeAsset(type, details), value: val, details: details, proofUrl: proofUrl,
+        ),
+        'Declaration submitted to FBR for monitoring.',
       );
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Declaration submitted to FBR for monitoring.')));
     }
   }
 
@@ -198,8 +211,35 @@ class _UserDashboardState extends State<UserDashboard> {
       context,
       MaterialPageRoute(builder: (_) => PayTaxScreen(cnic: widget.cnic, name: '${_d?['identity']?['name'] ?? ''}')),
     );
-    if (paid == true) _load(); // refresh profile: tax_paid + score updated
+    if (paid == true) {
+      _load(); // refresh profile: tax_paid + score updated
+      setState(() {}); // refresh My Payments
+    }
   }
+
+  Widget _myPayments() => FutureBuilder<List<dynamic>>(
+        future: Api.payments(cnic: widget.cnic),
+        builder: (_, snap) {
+          final list = (snap.data ?? []).where((p) => p['status'] == 'Paid').toList();
+          if (list.isEmpty) return const SizedBox.shrink();
+          return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const SectionTitle('My Tax Payments', Icons.receipt_long),
+            ...list.map((p) => Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    leading: const Icon(Icons.check_circle, color: Color(0xFF2E7D32)),
+                    title: Text(money(p['amount']), style: const TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: Text('PSID ${p['psid']} · ${'${p['created_at'] ?? ''}'.split('T').first}', style: const TextStyle(fontSize: 11)),
+                    trailing: TextButton.icon(
+                      icon: const Icon(Icons.picture_as_pdf, size: 18),
+                      label: const Text('Receipt'),
+                      onPressed: () => launchUrl(Uri.parse(Api.receiptUrl('${p['psid']}')), mode: LaunchMode.externalApplication),
+                    ),
+                  ),
+                )),
+          ]);
+        },
+      );
 
   Future<void> _reportIssue() async {
     String category = 'Wrong record';
@@ -230,8 +270,10 @@ class _UserDashboardState extends State<UserDashboard> {
       )),
     );
     if (ok == true) {
-      await Supa.reportIssue(cnic: widget.cnic, name: _d?['identity']?['name'], category: category, description: desc.text, proofUrl: proofUrl);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Issue reported with proof. FBR will review.')));
+      await _submit(
+        () => Supa.reportIssue(cnic: widget.cnic, name: _d?['identity']?['name'], category: category, description: desc.text, proofUrl: proofUrl),
+        'Issue reported. FBR will review.',
+      );
     }
   }
 
@@ -342,6 +384,7 @@ class _UserDashboardState extends State<UserDashboard> {
                   (r) => '${r['asset_type']} · ${(r['description'] ?? '')}'),
               _miniStream('My Issues', Supa.issues(cnic: widget.cnic),
                   (r) => '${r['category']} · ${(r['description'] ?? '')}'),
+              _myPayments(),
               const SectionTitle('My Requests', Icons.history),
               StreamBuilder<List<Map<String, dynamic>>>(
                 stream: Supa.requests(cnic: widget.cnic),

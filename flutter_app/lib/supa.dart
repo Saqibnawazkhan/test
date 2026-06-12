@@ -151,6 +151,19 @@ class Supa {
   static Stream<List<Map<String, dynamic>>> payments(String cnic) =>
       _c.from('payments').stream(primaryKey: ['id']).order('created_at', ascending: false).map((r) => r.where((x) => x['cnic'] == cnic).toList());
 
+  /// Record a completed Zindigi tax payment for realtime history + notify citizen AND admin.
+  static Future<void> recordPayment({required String cnic, String? name, required num amount, required String psid, String status = 'Paid'}) async {
+    try {
+      await _c.from('payments').insert({
+        'cnic': cnic, 'name': name, 'amount': amount, 'method': 'zindigi', 'status': status, 'reference': psid,
+      });
+    } catch (_) {/* history mirror is best-effort */}
+    await notify(recipient: cnic, kind: 'payment', title: 'Tax payment received',
+        body: 'PKR ${amount.toStringAsFixed(0)} paid to FBR (PSID $psid).');
+    await notify(recipient: 'admin', audience: 'admin', kind: 'payment', title: 'Tax payment received',
+        body: '${name ?? cnic} paid PKR ${amount.toStringAsFixed(0)} (PSID $psid).');
+  }
+
   // ---------------- storage (proof uploads) ----------------
   static Future<String> uploadProof(String filename, Uint8List bytes) async {
     final path = '${DateTime.now().millisecondsSinceEpoch}_$filename';

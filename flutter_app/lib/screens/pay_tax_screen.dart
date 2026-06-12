@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../api.dart';
+import '../supa.dart';
 import '../common.dart';
 
 /// Citizen tax payment via Zindigi IPG. Generates a PSID, opens the secure Zindigi
-/// checkout in an in-app browser; on success the backend records the payment,
-/// adds to tax_paid and recomputes the compliance score.
+/// checkout; on success the backend records the payment, adds to tax_paid and
+/// recomputes the score (proportional). Shows a downloadable receipt.
 class PayTaxScreen extends StatefulWidget {
   final String cnic;
   final String? name;
-  final num? suggested; // suggested amount (e.g. computed tax due)
+  final num? suggested;
   const PayTaxScreen({required this.cnic, this.name, this.suggested, super.key});
   @override
   State<PayTaxScreen> createState() => _PayTaxScreenState();
@@ -18,11 +20,23 @@ class PayTaxScreen extends StatefulWidget {
 class _PayTaxScreenState extends State<PayTaxScreen> {
   final _amount = TextEditingController();
   bool _loading = false;
+  String? _paidPsid;
+  num _paidAmount = 0;
 
   @override
   void initState() {
     super.initState();
     if (widget.suggested != null && widget.suggested! > 0) _amount.text = '${widget.suggested!.round()}';
+  }
+
+  Future<bool> _isPaid(String psid) async {
+    try {
+      final list = await Api.payments(cnic: widget.cnic);
+      final p = list.cast<Map<String, dynamic>>().firstWhere((x) => x['psid'] == psid, orElse: () => {});
+      return p['status'] == 'Paid';
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> _pay() async {
@@ -37,32 +51,42 @@ class _PayTaxScreenState extends State<PayTaxScreen> {
       final url = '${r['checkout_url']}';
       final psid = '${r['psid']}';
       if (!mounted) return;
-      final ok = await Navigator.push<bool>(
-        context,
-        MaterialPageRoute(builder: (_) => _CheckoutWebView(url: url, psid: psid)),
-      );
+      final res = await Navigator.push<bool?>(context, MaterialPageRoute(builder: (_) => _CheckoutWebView(url: url)));
+      // Robustness: if the WebView return was inconclusive, verify with the backend.
+      bool paid = res == true;
+      if (res == null) paid = await _isPaid(psid);
       if (!mounted) return;
       setState(() => _loading = false);
-      if (ok == true) {
-        Navigator.pop(context, true); // signal dashboard to refresh
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          backgroundColor: const Color(0xFF2E7D32),
-          content: Text('Payment successful — Rs ${amt.round()} paid. PSID $psid'),
-        ));
+      if (paid) {
+        await Supa.recordPayment(cnic: widget.cnic, name: widget.name, amount: amt, psid: psid); // history + notify
+        setState(() {
+          _paidPsid = psid;
+          _paidAmount = amt;
+        });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payment was not completed.')));
       }
-    } catch (e) {
+    } catch (_) {
       setState(() => _loading = false);
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not start payment — is the backend running?')));
     }
+  }
+
+  Future<void> _downloadReceipt() async {
+    if (_paidPsid == null) return;
+    final ok = await launchUrl(Uri.parse(Api.receiptUrl(_paidPsid!)), mode: LaunchMode.externalApplication);
+    if (!ok && mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open the receipt.')));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Pay Tax'), backgroundColor: kSeed, foregroundColor: Colors.white),
-      body: ListView(padding: const EdgeInsets.all(16), children: [
+      body: _paidPsid != null ? _success() : _form(),
+    );
+  }
+
+  Widget _form() => ListView(padding: const EdgeInsets.all(16), children: [
         Card(
           color: kSeed.withOpacity(0.06),
           child: const Padding(
@@ -70,7 +94,7 @@ class _PayTaxScreenState extends State<PayTaxScreen> {
             child: Row(children: [
               Icon(Icons.account_balance_wallet, color: kSeed),
               SizedBox(width: 12),
-              Expanded(child: Text('Pay your income tax securely via Zindigi (JS Bank). We generate a Payment Slip ID (PSID) for your record.')),
+              Expanded(child: Text('Pay your income tax securely via Zindigi (JS Bank). A Payment Slip ID (PSID) is generated for your record.')),
             ]),
           ),
         ),
@@ -78,11 +102,7 @@ class _PayTaxScreenState extends State<PayTaxScreen> {
         TextField(
           controller: _amount,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Amount to pay (PKR)',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.payments),
-          ),
+          decoration: const InputDecoration(labelText: 'Amount to pay (PKR)', border: OutlineInputBorder(), prefixIcon: Icon(Icons.payments)),
         ),
         const SizedBox(height: 14),
         FilledButton.icon(
@@ -99,15 +119,43 @@ class _PayTaxScreenState extends State<PayTaxScreen> {
           child: Text('You will pay via bank account, card or wallet with OTP. This is a live gateway — use a small amount while testing.',
               style: TextStyle(fontSize: 11.5, color: Colors.black45)),
         ),
-      ]),
-    );
-  }
+      ]);
+
+  Widget _success() => ListView(padding: const EdgeInsets.all(16), children: [
+        Card(
+          color: const Color(0xFFE8F5E9),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(children: [
+              const Icon(Icons.check_circle, color: Color(0xFF2E7D32), size: 48),
+              const SizedBox(height: 8),
+              const Text('Payment Successful', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32))),
+              const SizedBox(height: 6),
+              Text('Rs ${_paidAmount.round()} paid to FBR', style: const TextStyle(color: Colors.black87)),
+              const SizedBox(height: 4),
+              Text('PSID: $_paidPsid', style: const TextStyle(fontFamily: 'monospace', fontSize: 12, color: Colors.black54)),
+            ]),
+          ),
+        ),
+        const SizedBox(height: 14),
+        FilledButton.icon(
+          style: FilledButton.styleFrom(backgroundColor: const Color(0xFF2E6FE0), foregroundColor: Colors.white, padding: const EdgeInsets.all(14)),
+          onPressed: _downloadReceipt,
+          icon: const Icon(Icons.picture_as_pdf),
+          label: const Text('Download Receipt (PDF)'),
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: OutlinedButton.styleFrom(padding: const EdgeInsets.all(14)),
+          child: const Text('Done'),
+        ),
+      ]);
 }
 
 class _CheckoutWebView extends StatefulWidget {
   final String url;
-  final String psid;
-  const _CheckoutWebView({required this.url, required this.psid});
+  const _CheckoutWebView({required this.url});
   @override
   State<_CheckoutWebView> createState() => _CheckoutWebViewState();
 }
@@ -137,7 +185,18 @@ class _CheckoutWebViewState extends State<_CheckoutWebView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Zindigi Secure Payment'), backgroundColor: kSeed, foregroundColor: Colors.white),
+      appBar: AppBar(
+        title: const Text('Zindigi Secure Payment'),
+        backgroundColor: kSeed,
+        foregroundColor: Colors.white,
+        actions: [
+          // Manual exit — returns 'inconclusive' so the caller verifies the status with the backend.
+          TextButton(
+            onPressed: () => Navigator.pop(context, null),
+            child: const Text('Done', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
       body: WebViewWidget(controller: _controller),
     );
   }

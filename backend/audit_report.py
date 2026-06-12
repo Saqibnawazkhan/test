@@ -315,6 +315,56 @@ def build_audit_pdf(d):
     return bytes(out)
 
 
+def build_payment_receipt(d):
+    """Official tax-payment receipt PDF (PSID, payer, amount, txn, date, status)."""
+    pdf = _Doc()
+    pdf.subtitle = "Inland Revenue  -  Tax Payment Receipt  (processed via Zindigi / JS Bank)"
+    pdf.set_auto_page_break(True, margin=18)
+    pdf.add_page()
+
+    paid = (d.get("status") == "Paid")
+    pdf.set_font("helvetica", "B", 14)
+    pdf.cell(0, 8, "TAX PAYMENT RECEIPT", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("helvetica", "", 9)
+    pdf.set_text_color(*GREY)
+    pdf.cell(0, 5, "Receipt for FBR income-tax payment", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_text_color(*INK)
+    pdf.ln(4)
+
+    # status stamp
+    col = GREEN if paid else RED
+    pdf.set_draw_color(*col)
+    pdf.set_text_color(*col)
+    pdf.set_font("helvetica", "B", 12)
+    pdf.cell(40, 10, ("PAID" if paid else "NOT PAID"), border=1, align="C")
+    pdf.set_text_color(*INK)
+    pdf.ln(14)
+
+    _section(pdf, "Payment Details")
+    _kv_row(pdf, "Payment Slip ID (PSID)", d.get("psid") or "-", kw=60)
+    _kv_row(pdf, "Transaction ID", d.get("txn_id") or "-", kw=60)
+    _kv_row(pdf, "Date", str(d.get("date") or "-")[:19].replace("T", " "), kw=60)
+    _kv_row(pdf, "Amount paid", money(d.get("amount")), kw=60)
+    _kv_row(pdf, "Status", d.get("status") or "-", kw=60)
+
+    _section(pdf, "Taxpayer")
+    _kv_row(pdf, "Name", d.get("name") or "-", kw=60)
+    _kv_row(pdf, "CNIC", d.get("cnic") or "-", kw=60)
+    _kv_row(pdf, "NTN", d.get("ntn") or "Not registered", kw=60)
+
+    pdf.ln(6)
+    pdf.set_font("helvetica", "", 8.5)
+    pdf.set_text_color(*GREY)
+    pdf.multi_cell(0, 4.5,
+        "This is a system-generated receipt acknowledging the above tax payment to the Federal Board "
+        "of Revenue through the Zindigi (JS Bank) payment gateway. Retain this for your records; the "
+        "amount is credited against your tax liability and reflected on the Active Taxpayers status.",
+        new_x="LMARGIN", new_y="NEXT")
+
+    out = pdf.output()
+    return bytes(out)
+
+
 # ----------------------------------------------------------------------------
 # Show-Cause Notice — the statutory letter issued TO the taxpayer.
 # Same findings engine; formatted as a formal notice citing the real sections.
