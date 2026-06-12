@@ -1,0 +1,40 @@
+# secrets — never commit
+.env
+*.env
+!.env.example
+
+# python
+__pycache__/
+*.pyc
+backend/taxnet.db
+
+# flutter
+flutter_app/.dart_tool/
+flutter_app/build/
+
+# data (large) — regenerable from the generator scripts
+data-generator/output_full/
+data-generator/output/
+entity-resolution/output/
+graph/output/
+graph/neo4j/
+gnn/output/model.pt
+gnn/output/*.csv
+scoring/output/
+
+# large binaries / wheels (>100MB GitHub limit)
+tools/wheels/
+*.whl
+*.pt
+*.apk
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# node (web app)
+node_modules/
+Website/node_modules/
+.next/

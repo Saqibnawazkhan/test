@@ -1,0 +1,372 @@
+=== PAGE 1 ===
+ 
+ State Bank of Pakistan 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Guidelines: IBAN Implementation in Pakistan 
+ 
+=== PAGE 2 ===
+Guidelines: IBAN Implementation in Pakistan 
+ 
+Payment Systems Department Page ii 
+ 
+ 
+ 
+=== PAGE 3 ===
+Guidelines: IBAN Implementation in Pakistan 
+ 
+Payment Systems Department Page iii 
+ 
+ 
+Table of Contents 
+ 
+1. Introduction 
+ 
+2. IBAN Implementation 
+ 
+3. IBAN Benefits 
+ 
+4. Scope  
+ 
+5. IBAN Implementation Phases 
+ 
+6. IBAN Format 
+ 
+7. Proposed IBAN Format in Pakistan. 
+7.1. BBAN Structure  
+ 
+8. IBAN Generation and Verification 
+8.1. Generation Principles 
+8.2. IBAN Generation 
+8.3. IBAN Verification  
+ 
+9. IBAN Usage  
+ 
+10. IBAN Validation  
+ 
+ 
+Appendices 
+A. Character Conversion Table 
+=== PAGE 4 ===
+Guidelines: IBAN Implementation in Pakistan 
+ 
+Payment Systems Department Page iv 
+ 
+ 
+1. Introduction  
+The International Bank Account Number (IBAN) is an international standard for  
+identifying bank accounts across national borders with a minimal of risk of propagating 
+transcription errors. Already implemented in more than 50 countries (including EU, S. 
+Arabia, Kuwait, and UAE), IBAN Implementation can result not only in bringing more 
+efficiency in cross border transactions transfers including remittances sent by overseas 
+Pakistanis from IBAN Compliant Countries but will also result in facilitation of domestic 
+electronic transfers. 
+ 
+The IBAN concept was developed by the ECBS (European Co mmittee for Banking 
+Standards) and International Organization for Standardization (ISO) and is an 
+internationally agreed standard (ISO 13616-1:2007) for identifying bank accounts. IBAN 
+Standard is well known to banks and provider of payment systems in other countries.  
+ 
+2. IBAN Implementation 
+State Bank of Pakistan, in order to create consensus for implementing this standard in 
+Pakistan enlisted Pakistan Bank’s Association (PBA) support requiring nomination of a 
+high powered committee responsible for implement ing this standard. PBA has 
+accordingly constituted a committee comprising of officials from Habib Bank, MCB 
+Bank, Allied Bank, Citi Bank, United Bank, Bank Alfalah and National Bank of Pakistan. 
+The IBAN Committee has agreed on the structure of IBAN format to be implemented in 
+banking industry across Pakistan. 
+ 
+3. IBAN Benefits 
+ A bank account standard across Pakistan will bring more efficiency in payment 
+processing by enabling the payments \clearing systems to electronically validate 
+account numbers and to deci de the route a payment should take without manual 
+intervention.  
+ Elimination of delays in c redit transfers originating from IBAN compliant 
+countries to Pakistan as same are delayed, sometimes for several days due to 
+manual intervention required for sending  credit transfers to non IBAN compliant 
+account numbers.  
+ IBAN implementation will help in bringing more efficiency in remittance related 
+transactions as a significant percentage of these transactions are rejected due to 
+inaccurate account numbers informat ion. Account validation at remitting 
+institution due to IBAN’s check digit mechanism will significantly reduce errors 
+related to account numbers. 
+ 
+4. Scope  
+The document specifies the format of International Bank Account Number (IBAN), 
+including the format of  Basic Bank Account Number (BBAN) contained in IBAN. The 
+document specifies how the IBAN is generated and validated. The document also 
+specifies who may generate and issue IBANs. The standard specifies the technique of 
+validating an IBAN and the point at which this validation must be carried out. 
+ 
+=== PAGE 5 ===
+Guidelines: IBAN Implementation in Pakistan 
+ 
+Payment Systems Department Page v 
+ 
+ 
+ 
+5. IBAN Implementation Phases 
+IBAN standard will be implemented in Pakistan in two phases.  
+ 
+Phase 1 – December 2012 
+In the first phase, all the banks shall generate and notify IBAN to all their customers by 
+December 2012. 
+ 
+Phase 2 – June 2013 
+In the second phase, IBAN account numbers will be operationally used (capturing, 
+recognition, processing, validation, transfer) both for domestic as well as for international 
+financial transactions by June, 2013. 
+ 
+6. IBAN Format 
+IBAN is made up of the two components. The first component comprising of a country 
+code and check digit, sometimes known as international envelope and the 2 nd component 
+called Basic Bank Account Number (BBAN). IBAN therefore is made up of the 
+following elements: 
+1. International envelope   
+1.1. A two letter country code (CC).  
+1.2. A two -number check digit (CD) for the entire IBAN. Check digit feature 
+ensures (by validation) that account number provided (to remitting bank) is 
+correct. 
+2. Basic Bank Account Number (BBAN) 
+A Basic Bank Account Number (BBAN), no more than 30 characters long, 
+comprising Bank Identifier (BI), branch codes (if applicable)  and Bank Account 
+Number (BAN) 
+ 
+Example of IBAN 
+CH 9300762011623852957 
+CH        |93          |0076   |2011623852957 
+Country     | check    |BI       | account number 
+Code          | digit     |  
+     
+International Envelope           BBAN 
+When printed on paper, the IBAN is split into sets of four characters, as this is easier to 
+read. A field tag ‘IBAN’ should also be printed in paper based representation as:  
+IBAN: CH93 0076 2011 6238 5295 7 
+ 
+7. Proposed IBAN Format in Pakistan 
+ISO Standard 13616-1 requires that: 
+=== PAGE 6 ===
+Guidelines: IBAN Implementation in Pakistan 
+ 
+Payment Systems Department Page vi 
+ 
+1. a two letter (alpha) country code (ISO 3166) be used for IBAN. 
+2. Check Digit be calculated for each IBAN using MOD 97-10(see section 8). 
+3. IBAN has a fixed length per country. 
+4. The bank identifier has a fixed length and position within BBAN component of 
+the IBAN. 
+ 
+In order to meet these ISO Standard requirements: 
+1. A two letter Country code ‘PK’ for Pakistan as allocated by ISO is to be used for 
+IBAN. 
+2. Check Digit will be calculated by applying MOD 97-10 by each account servicing 
+institution at the time of IBAN generation for account holders. 
+3. A 24 digit IBAN number is proposed to be introduced in Pakistan. 
+4. Initial four letters of SWIFT BIC be used as Bank Identifier in Pakistan.  
+ 
+Example of proposed IBAN in Pakistan 
+ 
+PK00MUCB1234567890000001 
+ 
+PK             |00         |MUCB |1234567890000001 
+Country     | check   |BI        | account code 
+Code         | digit     |  
+                                                    BBAN 
+ 
+7.1. BBAN Structure  
+The BBAN, Basic Bank Account Number consists of two parts: 
+ 
+1. Bank Identification: The bank code is the first four characters of the bank’s 
+SWIF BIC code that unambiguously identifies the institution . The BIC codes are 
+registered by S.W.I.F.T.  
+ 
+The banks that do not have their BICs registered with SWIFT will be using the 
+BICs as defined in PRISM System or as assigned by the SBP. 
+ 
+Bank Identifier code for MCB therefore will be MUCB, for Habib Bank Ltd  is 
+HABB etc. Assigning these alpha codes will help in recognizing beneficiary 
+banks in paper as well as in electronic transfers.  
+ 
+2. Account Code: A 16 di git code will be used to identify account number. Banks 
+can use their existing account numbers in the a ccount code space of BBAN.  The 
+account code may also include account type, check digit, currency code, product 
+code etc. as per the prevailing practice within the banks.  
+ 
+It is acknowledged that all banks are not using 16 digit account numbers. Banks 
+using less than 16 digit account number will be required to pad 0’s at the left side 
+of their existing account number. Few banks are using more than 16 digit account 
+=== PAGE 7 ===
+Guidelines: IBAN Implementation in Pakistan 
+ 
+Payment Systems Department Page vii 
+ 
+numbers. These banks  will be required to drop un necessary digits from their 
+account numbers. 
+ 
+Example 1 
+Existing account number format in Bank A is 2112345607. In order to comply 
+with IBAN standard this account number will be padded with six 0’s at the left 
+side making the number as 0000002112345607. 
+ 
+Example 2 
+Existing account number format in Bank B is 2112345607898. In order to comply 
+IBAN standard this account number will be padded with three 0’s at the left side 
+making the number as 0002112345607898 
+ 
+8.  IBAN Generation and Verification 
+8.1. Generation Principles 
+An IBAN may only be generated by the fi nancial institution or bank holding the 
+customer’s account. The financial institution issuing an IBAN to a customer account in 
+Pakistan must use the country code PK to indicate that the customer’s account is 
+domiciled in Pakistan. Similarly, the BBAN forma t must be the agreed format as 
+proposed by State Bank of Pakistan in consultation with PBA Committee on IBAN. Upon 
+notification of an IBAN to a customer, the financial institution or bank should encourage 
+the customer to quote the IBAN clearly and in full on all domestic and international 
+financial transactions, for debits as well as for credits. The IBAN must be generated 
+according to the process1 described in the following section, IBAN Generation.  
+ 
+8.2. IBAN Generation 
+The following example shows how IBAN can be generated using existing account 
+number formats. 
+ 
+Example: 
+An existing account number maintained in a bank is 01123456702. In order to convert 
+this number to IBAN following step shall be performed:  
+ 
+1. Convert this account number to 16 digits in order t o make it compliant with 
+proposed BBAN format. This can be done by padding additional 0’s on the left 
+side of the account number as 0000001123456702. 
+2. Put bank identification code (first four letter of SWIFT BIC) on the left side of the 
+account number i.e. SCBL0000001123456702. This number is known as BBAN.  
+3. Write complete account number preceded by country code as PK, check digit to 
+be calculated as 00, giving the full account number as 
+ 
+PK00 SCBL0000001123456702 
+ 
+To calculate the check digit, following process is undertaken: 
+                                                 
+1 These guidelines do not address the technical process through which IBAN may be generated 
+by the institutions. 
+=== PAGE 8 ===
+Guidelines: IBAN Implementation in Pakistan 
+ 
+Payment Systems Department Page viii 
+ 
+ 
+a) Place country code and check digit in the end as mentioned below. 
+SCBL0000001123456702 PK00  
+ 
+b) Replace the alphabets in the IBAN as defined in Character Conversion Table 
+(Annexure A). According to the table, ‘S’ is replaced by 28, ‘C’ is replaced by 12, 
+B is replaced by 11 and L is replaced by 21 and so on.  
+ 
+281211210000001123456702 252000 
+ S  C B  L                                  P  K 
+ 
+c) Take modulus 97 of the number obtained in the step above, t he remainder in this 
+case is 62 
+ 
+d) Subtract the remainder from 98, the result is 36. This number is called Check 
+Digit. 
+ 
+e) If the result of subtracting the remainder from 98 is less than 10, than add a 
+leading zero to the remaining number. e.g. if the result after subtraction from 98 is 
+5 then check digit will be 05. 
+ 
+The IBAN generated for this account 01123456702 will be as follows: 
+ 
+PK36SCBL0000001123456702 
+ 
+The IBAN is presented in all printed forms in sets of four alphabetic characters/numeric  
+digits separated by spaces as follows 
+ 
+PK36  SCBL  0000  0011  2345  6702 
+ 
+8.3. IBAN Verification (by transacting/account holder’s bank)  
+The following steps may be used to verify2 quoted IBAN: 
+ 
+1. Move the two alphabetic character country code and check digit pair from the 
+front of the IBAN to back  
+ 
+SCBL0000001123456702 PK36 
+ 
+2. Convert all alphabetic characters to numeric digits according to the standard 
+character Conversion Table – ‘Annexure A’ 
+281211210000001123456702252036 
+  S C B  L                                 P  K 
+ 
+                                                 
+2 The IBAN Verification Process only verifies the correction of quoted IBAN and does not verify its 
+existence. 
+=== PAGE 9 ===
+Guidelines: IBAN Implementation in Pakistan 
+ 
+Payment Systems Department Page ix 
+ 
+3. Take modulus 97 of the number obtained in the above step, if this remainder is 1, 
+then the IBAN is valid. 
+ 
+ 
+9. IBAN Usage  
+The IBAN usage is as follows: 
+ Bank should generate and issue IBAN to its account holders. Bank  should 
+encourage customers to use\quote their IBAN number in all financial transact ions 
+during the transitionary period . Banks are further advised to develop online 
+utilities for converting their account numbers to IBAN in order to facilitate their 
+account holders besides quoting IBAN number in account statements  issued to 
+each account holder.  
+ Beneficiary customer should notify ordering customer of their IBAN. 
+ Paying bank shall validate IBAN and use the data to process payment. 
+ IBAN should be validated  for all inward payments  to ensure account number 
+accuracy. 
+ 
+10. IBAN Validation  
+The financial institutions should validate the IBANs at the time of entry of the transaction 
+in their system both for sending and receiving customers. 
+ 
+Financial institutions can build IBAN validation tools in-house or can use different IBAN 
+validation websites to determine whether an IBAN number given is valid or not.  
+ 
+=== PAGE 10 ===
+Guidelines: IBAN Implementation in Pakistan 
+ 
+Payment Systems Department Page x 
+ 
+ 
+ 
+Annexure A: Character Conversion Table 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+-End of Document- 
