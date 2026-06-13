@@ -1,0 +1,15 @@
+
+================================================================
+ENTITY RESOLUTION — EVALUATION
+================================================================
+Mentions: 1,459,528  |  Canonical entities: 243,299
+Person mentions evaluated: 1,433,451
+HARD subset (missing/typo CNIC): 0 (0.0% of persons)
+
+Set                         Precision    Recall       F1
+--------------------------------------------------------
+OVERALL (all persons)          1.0000    1.0000   1.0000
+HARD (no clean CNIC)           1.0000    1.0000   1.0000
+
+BASELINE CNIC-join only        1.0000    1.0000   1.0000
+  -> ER lifts recall 1.000 -> 1.000  (+0.0 pts)
