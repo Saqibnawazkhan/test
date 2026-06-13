@@ -427,35 +427,59 @@ class _UserDashboardState extends State<UserDashboard> {
     final sc = d['score'];
     final zone = sc?['zone'] ?? 'Green';
     final score = (sc?['deviation_score'] ?? 0).toDouble();
-    return Card(
-      color: zoneColor(zone).withOpacity(0.08),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(children: [
-          Text(d['identity']['name'] ?? '', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          Text(widget.cnic, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-          const SizedBox(height: 14),
-          Text(score.toStringAsFixed(0),
-              style: TextStyle(fontSize: 44, fontWeight: FontWeight.bold, color: zoneColor(zone))),
-          const Text('Tax Compliance Deviation Score'),
-          const SizedBox(height: 8),
-          ZoneChip(zone, score: score),
-          if (zone != 'Green') ...[
-            const SizedBox(height: 12),
-            Text(
-              zone == 'Red'
-                  ? 'Your declared income appears far below your assets/lifestyle. You may be selected for audit.'
-                  : 'Some deviation detected between your declared income and footprint.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[700], fontSize: 13),
-            ),
-          ] else
-            const Padding(
-              padding: EdgeInsets.only(top: 10),
-              child: Text('You are tax-compliant. Thank you.', style: TextStyle(color: Color(0xFF2E7D32))),
-            ),
-        ]),
+    final col = zoneColor(zone);
+    final name = '${d['identity']['name'] ?? ''}';
+    final initials = name.split(' ').where((s) => s.isNotEmpty).map((s) => s[0]).take(2).join();
+    final msg = zone == 'Red'
+        ? 'Your declared income appears far below your assets & lifestyle. You may be selected for audit.'
+        : zone == 'Yellow'
+            ? 'Some deviation detected between your declared income and footprint.'
+            : 'You are tax-compliant. Thank you for filing.';
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [col, Color.lerp(col, Colors.black, 0.38)!]),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: col.withOpacity(0.35), blurRadius: 22, offset: const Offset(0, 10), spreadRadius: -6)],
       ),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
+      child: Column(children: [
+        Row(children: [
+          CircleAvatar(radius: 21, backgroundColor: Colors.white24, child: Text(initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(name, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(widget.cnic, style: const TextStyle(color: Colors.white70, fontSize: 11.5)),
+          ])),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.18), borderRadius: BorderRadius.circular(20)),
+            child: Text('$zone ZONE', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 11)),
+          ),
+        ]),
+        const SizedBox(height: 18),
+        SizedBox(
+          width: 132, height: 132,
+          child: Stack(alignment: Alignment.center, children: [
+            SizedBox(
+              width: 132, height: 132,
+              child: CircularProgressIndicator(
+                value: (score / 100).clamp(0.0, 1.0),
+                strokeWidth: 9, strokeCap: StrokeCap.round,
+                backgroundColor: Colors.white.withOpacity(0.22),
+                valueColor: const AlwaysStoppedAnimation(Colors.white),
+              ),
+            ),
+            Column(mainAxisSize: MainAxisSize.min, children: [
+              Text(score.toStringAsFixed(0), style: const TextStyle(color: Colors.white, fontSize: 42, fontWeight: FontWeight.bold, height: 1)),
+              const Text('/ 100', style: TextStyle(color: Colors.white70, fontSize: 11)),
+            ]),
+          ]),
+        ),
+        const SizedBox(height: 12),
+        const Text('Tax Compliance Deviation Score', style: TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        Text(msg, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 12.5, height: 1.4)),
+      ]),
     );
   }
 

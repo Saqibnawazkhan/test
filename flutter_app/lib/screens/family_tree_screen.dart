@@ -52,7 +52,7 @@ class _FamilyTreeScreenState extends State<FamilyTreeScreen> {
       if (deps.isNotEmpty) ...[
         const SizedBox(height: 12),
         Row(children: [
-          const Icon(Icons.subdirectory_arrow_right, size: 18, color: C.text3),
+          Icon(Icons.subdirectory_arrow_right, size: 18, color: C.text3),
           const SizedBox(width: 6),
           Text('Assets held through ${deps.length} relative${deps.length > 1 ? 's' : ''}',
               style: body(12.5, w: FontWeight.w700, c: C.text2)),

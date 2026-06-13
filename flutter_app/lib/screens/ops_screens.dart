@@ -31,7 +31,7 @@ class _AnalyticsScreen2State extends State<AnalyticsScreen2> {
     return ListView(padding: const EdgeInsets.fromLTRB(16, 18, 16, 70), children: [
       const PageHeader('Reporting', 'Analytics & Reporting', desc: 'Compliance trends, regional posture and revenue leakage across the tax net.'),
       GlassCard(
-        gradient: const LinearGradient(colors: [Color(0x1225C98C), C.panel]),
+        gradient: LinearGradient(colors: [const Color(0x1225C98C), C.panel]),
         child: Row(children: [
           Container(width: 46, height: 46, decoration: BoxDecoration(color: C.green.withOpacity(0.15), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.savings, color: C.green)),
           const SizedBox(width: 14),
@@ -86,7 +86,7 @@ class _AnalyticsScreen2State extends State<AnalyticsScreen2> {
   }
 
   Widget _line(List<double> v, Color c) => LineChart(LineChartData(
-        gridData: FlGridData(show: true, drawVerticalLine: false, getDrawingHorizontalLine: (_) => const FlLine(color: C.border, strokeWidth: 1)),
+        gridData: FlGridData(show: true, drawVerticalLine: false, getDrawingHorizontalLine: (_) => FlLine(color: C.border, strokeWidth: 1)),
         titlesData: const FlTitlesData(leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)), rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)), topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)), bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false))),
         borderData: FlBorderData(show: false),
         lineBarsData: [LineChartBarData(spots: [for (int i = 0; i < v.length; i++) FlSpot(i.toDouble(), v[i])], isCurved: true, color: c, barWidth: 3, dotData: const FlDotData(show: false), belowBarData: BarAreaData(show: true, color: c.withOpacity(0.1)))],
@@ -205,20 +205,21 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  String _lang = 'EN';
   bool _notif = true, _logging = true;
 
   @override
   Widget build(BuildContext context) {
     return ListView(padding: const EdgeInsets.fromLTRB(16, 18, 16, 70), children: [
-      const PageHeader('Configuration', 'Settings', desc: 'Access control, localisation and security monitoring.'),
+      PageHeader(t('Configuration'), t('Settings'), desc: 'Access control, localisation and security monitoring.'),
       GlassCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Preferences', style: display(15)),
-        _row('Interface theme', 'Dark command mode', _segment(['DARK', 'LIGHT'], 'DARK', (_) {})),
-        _row('Language', 'Urdu & English supported', _segment(['EN', 'اردو'], _lang == 'EN' ? 'EN' : 'اردو', (v) => setState(() => _lang = v == 'EN' ? 'EN' : 'UR'))),
-        _row('Role-based access', 'Senior Investigator · Tier 3', const Tag('SECURED', sev: 'low', icon: Icons.shield)),
-        _row('Real-time notifications', 'Critical-entity alerts pushed instantly', _toggle(_notif, (v) => setState(() => _notif = v))),
-        _row('Activity & audit logging', 'All actions recorded immutably', _toggle(_logging, (v) => setState(() => _logging = v))),
+        Text(t('Preferences'), style: display(15)),
+        _row(t('Interface theme'), AppCtl.dark.value ? 'Dark command mode' : 'Light mode',
+            _segment(['DARK', 'LIGHT'], AppCtl.dark.value ? 'DARK' : 'LIGHT', (v) => setState(() => AppCtl.dark.value = v == 'DARK'))),
+        _row(t('Language'), 'Urdu & English supported',
+            _segment(['EN', 'اردو'], AppCtl.urdu.value ? 'اردو' : 'EN', (v) => setState(() => AppCtl.urdu.value = v == 'اردو'))),
+        _row(t('Role-based access'), 'Senior Investigator · Tier 3', const Tag('SECURED', sev: 'low', icon: Icons.shield)),
+        _row(t('Real-time notifications'), 'Critical-entity alerts pushed instantly', _toggle(_notif, (v) => setState(() => _notif = v))),
+        _row(t('Activity & audit logging'), 'All actions recorded immutably', _toggle(_logging, (v) => setState(() => _logging = v))),
       ])),
     ]);
   }

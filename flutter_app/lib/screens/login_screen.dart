@@ -50,9 +50,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       decoration: InputDecoration(
                         labelText: 'CNIC',
                         labelStyle: body(12, c: C.text3),
-                        prefixIcon: const Icon(Icons.badge_outlined, color: C.text3),
+                        prefixIcon: Icon(Icons.badge_outlined, color: C.text3),
                         filled: true, fillColor: C.panel,
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(11), borderSide: const BorderSide(color: C.border)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(11), borderSide: BorderSide(color: C.border)),
                         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(11), borderSide: const BorderSide(color: C.blue)),
                       ),
                     ),
@@ -72,7 +72,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(foregroundColor: C.text, side: const BorderSide(color: C.border2), padding: const EdgeInsets.all(16)),
+                    style: OutlinedButton.styleFrom(foregroundColor: C.text, side: BorderSide(color: C.border2), padding: const EdgeInsets.all(16)),
                     onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminShell())),
                     icon: const Icon(Icons.shield_outlined, color: C.green),
                     label: Text('Enter as FBR Investigator', style: body(13.5, w: FontWeight.w600)),

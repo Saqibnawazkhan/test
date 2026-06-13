@@ -1,30 +1,52 @@
 import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+/// Global UI state: dark/light theme + English/Urdu. Toggling rebuilds the app.
+class AppCtl {
+  static final ValueNotifier<bool> dark = ValueNotifier<bool>(false);
+  static final ValueNotifier<bool> urdu = ValueNotifier<bool>(false);
+}
+
+const Map<String, String> _ur = {
+  'Dashboard': 'ڈیش بورڈ', 'All Records': 'تمام ریکارڈز', 'Knowledge Graph': 'نالج گراف',
+  'Entity Resolution': 'شناخت کی تطبیق', 'Risk Analysis': 'خطرے کا تجزیہ', 'Audit Trail': 'آڈٹ ٹریل',
+  'POS Verification': 'پی او ایس تصدیق', 'Tax Payments': 'ٹیکس ادائیگیاں', 'Reports': 'رپورٹس',
+  'Leaderboard': 'لیڈر بورڈ', 'Citizen Inbox': 'شہری ان باکس', 'Settings': 'ترتیبات',
+  'Search CNIC, name, property, vehicle…': 'شناختی کارڈ، نام، جائیداد یا گاڑی تلاش کریں…',
+  'Preferences': 'ترجیحات', 'Interface theme': 'انٹرفیس تھیم', 'Language': 'زبان',
+  'Role-based access': 'کردار کی بنیاد پر رسائی', 'Real-time notifications': 'فوری اطلاعات',
+  'Activity & audit logging': 'سرگرمی اور آڈٹ ریکارڈ', 'Configuration': 'تشکیل',
+};
+
+/// Translate a UI string to Urdu when Urdu mode is on (falls back to English).
+String t(String en) => AppCtl.urdu.value ? (_ur[en] ?? en) : en;
+
 /// ===== TaxNet AI — dark "command" design system (ported from the website CSS) =====
 class C {
-  // backgrounds (LIGHT)
-  static const bg0 = Color(0xFFEDF1F6); // page
-  static const bg1 = Color(0xFFF4F7FB); // drawer / bars
-  static const bg2 = Color(0xFFFFFFFF); // cards
-  // subtle fills / borders (faint dark tints over light)
-  static const panel = Color(0x08101926);
-  static const panel2 = Color(0x12101926);
-  static const border = Color(0x1A101926);
-  static const border2 = Color(0x29101926);
-  // accents
+  static bool get _d => AppCtl.dark.value;
+  // backgrounds — theme-aware (dark/light)
+  static Color get bg0 => _d ? const Color(0xFF0A0F1A) : const Color(0xFFEDF1F6); // page
+  static Color get bg1 => _d ? const Color(0xFF111A2B) : const Color(0xFFF4F7FB); // drawer / bars
+  static Color get bg2 => _d ? const Color(0xFF18233A) : const Color(0xFFFFFFFF); // cards / surfaces
+  // subtle fills / borders
+  static Color get panel => _d ? const Color(0x14FFFFFF) : const Color(0x08101926);
+  static Color get panel2 => _d ? const Color(0x1FFFFFFF) : const Color(0x12101926);
+  static Color get border => _d ? const Color(0x24FFFFFF) : const Color(0x1A101926);
+  static Color get border2 => _d ? const Color(0x38FFFFFF) : const Color(0x29101926);
+  // accents (same on both themes)
   static const green = Color(0xFF1AA978);
   static const green2 = Color(0xFF12B57F);
   static const blue = Color(0xFF2E6FE0);
   static const blue2 = Color(0xFF4C8DF6);
   static const cyan = Color(0xFF0E9FBC);
   static const violet = Color(0xFF6F66D8);
-  // text
-  static const text = Color(0xFF101926);
-  static const text2 = Color(0xFF495568);
-  static const text3 = Color(0xFF7A8799);
+  // text — theme-aware
+  static Color get text => _d ? const Color(0xFFEAEFF7) : const Color(0xFF101926);
+  static Color get text2 => _d ? const Color(0xFFAEB9CC) : const Color(0xFF495568);
+  static Color get text3 => _d ? const Color(0xFF7E8CA3) : const Color(0xFF7A8799);
   // risk
   static const low = Color(0xFF1AA978);
   static const med = Color(0xFFD79A1E);
@@ -64,26 +86,61 @@ TextStyle body(double size, {FontWeight w = FontWeight.w400, Color? c, double h 
 TextStyle mono(double size, {FontWeight w = FontWeight.w500, Color? c, double ls = 0}) =>
     GoogleFonts.jetBrainsMono(fontSize: size, fontWeight: w, color: c ?? C.text, letterSpacing: ls);
 
-ThemeData buildTheme() {
-  final scheme = const ColorScheme.light(
+ThemeData buildTheme([bool dark = false]) {
+  final scheme = ColorScheme.light(
     primary: C.green, secondary: C.blue, surface: C.bg2,
     error: C.critical, onPrimary: Colors.white, onSurface: C.text,
   );
   return ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
-    scaffoldBackgroundColor: C.bg0,
-    canvasColor: C.bg1,
+    scaffoldBackgroundColor: Colors.transparent, // global glass wash shows through (see AppRoot)
+    canvasColor: dark ? const Color(0xFF111A2B) : C.bg1,
     textTheme: GoogleFonts.soraTextTheme(ThemeData.light().textTheme).apply(bodyColor: C.text, displayColor: C.text),
     dividerColor: C.border,
-    iconTheme: const IconThemeData(color: C.text2),
+    iconTheme: IconThemeData(color: C.text2),
     appBarTheme: AppBarTheme(
       backgroundColor: C.bg2, foregroundColor: C.text, elevation: 0,
       titleTextStyle: display(17), surfaceTintColor: Colors.transparent,
-      iconTheme: const IconThemeData(color: C.text2),
+      iconTheme: IconThemeData(color: C.text2),
       systemOverlayStyle: SystemUiOverlayStyle.dark,
     ),
-    drawerTheme: const DrawerThemeData(backgroundColor: C.bg1),
+    drawerTheme: DrawerThemeData(backgroundColor: C.bg1),
+    // ---- premium component styling (lifts every Material screen, incl. citizen) ----
+    cardTheme: CardThemeData(
+      elevation: 0, color: Colors.white.withOpacity(dark ? 0.92 : 0.55), surfaceTintColor: Colors.transparent, margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.white.withOpacity(dark ? 0.7 : 0.55))),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true, fillColor: dark ? Colors.white.withOpacity(0.85) : C.bg1,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      labelStyle: body(12.5, c: C.text3), prefixIconColor: C.text3, hintStyle: body(13, c: C.text3),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: C.border)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: C.border)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: C.green, width: 1.5)),
+    ),
+    filledButtonTheme: FilledButtonThemeData(style: FilledButton.styleFrom(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), textStyle: body(13.5, w: FontWeight.w700), elevation: 0,
+    )),
+    elevatedButtonTheme: ElevatedButtonThemeData(style: ElevatedButton.styleFrom(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0,
+    )),
+    outlinedButtonTheme: OutlinedButtonThemeData(style: OutlinedButton.styleFrom(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), side: BorderSide(color: C.border2), textStyle: body(13, w: FontWeight.w600),
+    )),
+    textButtonTheme: TextButtonThemeData(style: TextButton.styleFrom(textStyle: body(13, w: FontWeight.w600))),
+    floatingActionButtonTheme: const FloatingActionButtonThemeData(elevation: 2, highlightElevation: 2),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating, backgroundColor: C.text,
+      contentTextStyle: body(12.5, c: Colors.white),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
+    chipTheme: ChipThemeData(
+      backgroundColor: C.bg1, side: BorderSide(color: C.border),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      labelStyle: body(11.5, c: C.text2),
+    ),
+    dialogTheme: DialogThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)), backgroundColor: C.bg2),
   );
 }
 
@@ -114,6 +171,30 @@ class GlowBackground extends StatelessWidget {
       );
 }
 
+/// Global soft colour wash placed behind every screen (via MaterialApp.builder),
+/// so translucent cards/app-bars across the whole app frost over real colour.
+class GlassBackground extends StatelessWidget {
+  final Widget child;
+  const GlassBackground({required this.child, super.key});
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: AppCtl.dark.value
+              ? const LinearGradient(
+                  begin: Alignment.topRight, end: Alignment.bottomLeft,
+                  colors: [Color(0xFF0A0F1A), Color(0xFF0E1626), Color(0xFF150F22)],
+                  stops: [0.0, 0.55, 1.0],
+                )
+              : const LinearGradient(
+                  begin: Alignment.topRight, end: Alignment.bottomLeft,
+                  colors: [Color(0xFFDCE7F7), Color(0xFFDCEFE7), Color(0xFFE7E2F5)],
+                  stops: [0.0, 0.55, 1.0],
+                ),
+        ),
+        child: child,
+      );
+}
+
 // ---- reusable widgets ----
 class GlassCard extends StatelessWidget {
   final Widget child;
@@ -124,16 +205,28 @@ class GlassCard extends StatelessWidget {
   const GlassCard({required this.child, this.padding = const EdgeInsets.all(18), this.border, this.gradient, this.onTap, super.key});
   @override
   Widget build(BuildContext context) {
-    final w = Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: gradient == null ? C.bg2 : null,
-        gradient: gradient,
-        border: Border.all(color: border ?? C.border),
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: const [BoxShadow(color: Color(0x14101926), blurRadius: 18, offset: Offset(0, 6), spreadRadius: -8)],
+    final w = ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            // translucent frosted sheen — coloured background shows through the glass
+            gradient: gradient ??
+                LinearGradient(
+                  begin: Alignment.topLeft, end: Alignment.bottomRight,
+                  colors: AppCtl.dark.value
+                      ? [Colors.white.withOpacity(0.12), Colors.white.withOpacity(0.05)]
+                      : [Colors.white.withOpacity(0.42), Colors.white.withOpacity(0.16)],
+                ),
+            border: Border.all(color: border ?? Colors.white.withOpacity(AppCtl.dark.value ? 0.18 : 0.55)),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: const [BoxShadow(color: Color(0x18101926), blurRadius: 22, offset: Offset(0, 8), spreadRadius: -8)],
+          ),
+          child: child,
+        ),
       ),
-      child: child,
     );
     return onTap == null ? w : GestureDetector(onTap: onTap, child: w);
   }

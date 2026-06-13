@@ -14,10 +14,18 @@ void main() async {
 class TaxNetApp extends StatelessWidget {
   const TaxNetApp({super.key});
   @override
-  Widget build(BuildContext context) => MaterialApp(
-        title: 'TaxNet AI',
-        debugShowCheckedModeBanner: false,
-        theme: buildDarkTheme(),
-        home: const CitizenLoginScreen(),
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: Listenable.merge([AppCtl.dark, AppCtl.urdu]),
+        builder: (context, _) => MaterialApp(
+          title: 'TaxNet AI',
+          debugShowCheckedModeBanner: false,
+          theme: buildTheme(AppCtl.dark.value),
+          builder: (context, child) {
+            Widget app = GlassBackground(child: child ?? const SizedBox.shrink());
+            if (AppCtl.urdu.value) app = Directionality(textDirection: TextDirection.rtl, child: app);
+            return app;
+          },
+          home: const CitizenLoginScreen(),
+        ),
       );
 }

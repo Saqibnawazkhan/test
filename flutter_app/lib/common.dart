@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 /// Shared theme, formatting helpers, and small widgets.
 
-const kSeed = Color(0xFF0B6E4F); // FBR-ish green
+const kSeed = Color(0xFF1AA978); // FBR brand green (matches the premium design system)
+const _ink = Color(0xFF101926);
 
 ThemeData buildTheme() => ThemeData(
       colorScheme: ColorScheme.fromSeed(seedColor: kSeed),
@@ -51,13 +53,17 @@ class ZoneChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = zoneColor(zone);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(color: c.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+      decoration: BoxDecoration(
+        color: c.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: c.withOpacity(0.25)),
+      ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.circle, size: 9, color: c),
-        const SizedBox(width: 6),
+        Container(width: 8, height: 8, decoration: BoxDecoration(color: c, shape: BoxShape.circle, boxShadow: [BoxShadow(color: c.withOpacity(0.5), blurRadius: 5)])),
+        const SizedBox(width: 7),
         Text(score != null ? '$zone · ${score!.toStringAsFixed(0)}' : (zone ?? '—'),
-            style: TextStyle(color: c, fontWeight: FontWeight.w700, fontSize: 12)),
+            style: GoogleFonts.spaceGrotesk(color: c, fontWeight: FontWeight.w700, fontSize: 12.5)),
       ]),
     );
   }
@@ -90,13 +96,15 @@ class SectionTitle extends StatelessWidget {
   const SectionTitle(this.text, this.icon, {super.key});
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(top: 18, bottom: 8),
+        padding: const EdgeInsets.only(top: 20, bottom: 10),
         child: Row(children: [
-          Icon(icon, size: 18, color: kSeed),
-          const SizedBox(width: 8),
-          Text(text, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          Container(width: 3.5, height: 17, decoration: BoxDecoration(color: kSeed, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(width: 9),
+          Icon(icon, size: 16, color: kSeed),
+          const SizedBox(width: 7),
+          Text(text, style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w700, fontSize: 15.5, color: _ink)),
         ]),
       );
 }
 
-Widget loading() => const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator()));
+Widget loading() => const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator(color: kSeed)));

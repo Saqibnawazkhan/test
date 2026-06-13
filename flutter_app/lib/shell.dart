@@ -1,3 +1,4 @@
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'theme.dart';
 import 'api.dart';
@@ -50,13 +51,28 @@ class _AdminShellState extends State<AdminShell> {
   @override
   Widget build(BuildContext context) {
     final m = _modules[_i];
+    final topPad = MediaQuery.of(context).padding.top + kToolbarHeight;
     return Scaffold(
       drawer: _drawer(),
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         titleSpacing: 4,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        flexibleSpace: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(AppCtl.dark.value ? 0.06 : 0.55),
+                border: Border(bottom: BorderSide(color: C.border)),
+              ),
+            ),
+          ),
+        ),
         title: Row(children: [
           Text('TaxNet ', style: mono(12, c: C.text3)),
-          Text('/ ${m.label}', style: mono(12, c: C.text)),
+          Text('/ ${t(m.label)}', style: mono(12, c: C.text)),
         ]),
         actions: [
           const NotificationBell(recipient: 'admin'),
@@ -74,21 +90,27 @@ class _AdminShellState extends State<AdminShell> {
       body: GlowBackground(
         child: Column(children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 2),
+            padding: EdgeInsets.fromLTRB(16, topPad + 8, 16, 2),
             child: GestureDetector(
               onTap: _openSearch,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-                decoration: BoxDecoration(
-                  color: C.bg2, border: Border.all(color: C.border), borderRadius: BorderRadius.circular(12),
-                  boxShadow: const [BoxShadow(color: Color(0x10101926), blurRadius: 10, offset: Offset(0, 3))],
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(AppCtl.dark.value ? 0.07 : 0.5), border: Border.all(color: Colors.white.withOpacity(AppCtl.dark.value ? 0.16 : 0.55)), borderRadius: BorderRadius.circular(12),
+                      boxShadow: const [BoxShadow(color: Color(0x10101926), blurRadius: 10, offset: Offset(0, 3))],
+                    ),
+                    child: Row(children: [
+                      Icon(Icons.search, size: 20, color: C.text3),
+                      const SizedBox(width: 12),
+                      Expanded(child: Text(t('Search CNIC, name, property, vehicle…'), style: body(13.5, c: C.text3))),
+                      Container(padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3), decoration: BoxDecoration(border: Border.all(color: C.border), borderRadius: BorderRadius.circular(5)), child: Text('GO', style: mono(10, c: C.text3))),
+                    ]),
+                  ),
                 ),
-                child: Row(children: [
-                  const Icon(Icons.search, size: 20, color: C.text3),
-                  const SizedBox(width: 12),
-                  Expanded(child: Text('Search CNIC, name, property, vehicle…', style: body(13.5, c: C.text3))),
-                  Container(padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3), decoration: BoxDecoration(border: Border.all(color: C.border), borderRadius: BorderRadius.circular(5)), child: Text('GO', style: mono(10, c: C.text3))),
-                ]),
               ),
             ),
           ),
@@ -165,7 +187,7 @@ class _AdminShellState extends State<AdminShell> {
                 ],
               ),
             ),
-            const Divider(color: C.border, height: 1),
+            Divider(color: C.border, height: 1),
             Padding(
               padding: const EdgeInsets.all(12),
               child: Row(children: [
@@ -182,7 +204,7 @@ class _AdminShellState extends State<AdminShell> {
                   ]),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.logout, size: 16, color: C.text3),
+                  icon: Icon(Icons.logout, size: 16, color: C.text3),
                   onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst),
                 ),
               ]),
@@ -211,7 +233,7 @@ class _AdminShellState extends State<AdminShell> {
         child: Row(children: [
           Icon(m.icon, size: 18, color: active ? C.green : C.text2),
           const SizedBox(width: 12),
-          Text(m.label, style: body(13.5, w: FontWeight.w500, c: active ? C.text : C.text2)),
+          Text(t(m.label), style: body(13.5, w: FontWeight.w500, c: active ? C.text : C.text2)),
           const Spacer(),
           if (m.badge != null)
             Container(
@@ -303,7 +325,7 @@ class _CopilotSheetState extends State<CopilotSheet> {
               IconButton(icon: const Icon(Icons.close, size: 20), onPressed: () => Navigator.pop(context)),
             ]),
           ),
-          const Divider(color: C.border, height: 1),
+          Divider(color: C.border, height: 1),
           Expanded(
             child: ListView(
               padding: const EdgeInsets.all(16),
@@ -329,7 +351,7 @@ class _CopilotSheetState extends State<CopilotSheet> {
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
             child: Wrap(spacing: 7, children: [
               for (final c in ['Show new flags', 'Recovery potential', 'Explain a case'])
-                ActionChip(label: Text(c, style: body(11.5, c: C.text2)), backgroundColor: C.panel, side: const BorderSide(color: C.border), onPressed: () => _send(c)),
+                ActionChip(label: Text(c, style: body(11.5, c: C.text2)), backgroundColor: C.panel, side: BorderSide(color: C.border), onPressed: () => _send(c)),
             ]),
           ),
           Padding(
@@ -344,8 +366,8 @@ class _CopilotSheetState extends State<CopilotSheet> {
                     hintText: 'Ask the copilot…',
                     hintStyle: body(13, c: C.text3),
                     filled: true, fillColor: C.panel,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: C.border)),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: C.border)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: C.border)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: C.border)),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   ),
                 ),

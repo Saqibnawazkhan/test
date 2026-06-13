@@ -20,7 +20,7 @@ class AdminInbox extends StatelessWidget {
             const Expanded(child: PageHeader('Citizen Submissions', 'Inbox', desc: 'Live requests, declarations, explanations and disputes.')),
           ]),
         ),
-        const TabBar(
+        TabBar(
           isScrollable: true,
           labelColor: C.green, unselectedLabelColor: C.text3, indicatorColor: C.green,
           tabs: [Tab(text: 'Requests'), Tab(text: 'Declarations'), Tab(text: 'Explanations'), Tab(text: 'Issues')],

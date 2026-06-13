@@ -37,7 +37,17 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
-  String _clean(String s) => s.replaceAll('**', '').replaceAll(RegExp(r'^#{1,6}\s*', multiLine: true), '');
+  // Strip Markdown so bubbles never show raw **, ##, ---, `, * symbols.
+  String _clean(String s) => s
+      .replaceAll(RegExp(r'`+'), '')
+      .replaceAll(RegExp(r'^\s{0,3}#{1,6}\s*', multiLine: true), '')
+      .replaceAllMapped(RegExp(r'\*\*([^*]+)\*\*'), (m) => m[1]!)
+      .replaceAllMapped(RegExp(r'__([^_]+)__'), (m) => m[1]!)
+      .replaceAllMapped(RegExp(r'(^|[^*])\*([^*\n]+)\*'), (m) => '${m[1]}${m[2]}')
+      .replaceAll(RegExp(r'^\s*[-*_]{3,}\s*$', multiLine: true), '')
+      .replaceAll(RegExp(r'^\s*[-*+]\s+', multiLine: true), '• ')
+      .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+      .trim();
 
   void _scrollDown() => WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_scroll.hasClients) _scroll.animateTo(_scroll.position.maxScrollExtent + 120, duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
@@ -86,7 +96,7 @@ class _ChatScreenState extends State<ChatScreen> {
           top: false,
           child: Container(
             padding: const EdgeInsets.fromLTRB(12, 8, 8, 10),
-            decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8, offset: const Offset(0, -2))]),
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.6), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8, offset: const Offset(0, -2))]),
             child: Row(children: [
               Expanded(
                 child: TextField(

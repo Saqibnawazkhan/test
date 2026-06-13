@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../api.dart';
@@ -136,11 +135,8 @@ class AuditTrailScreen extends StatefulWidget {
 }
 
 class _AuditTrailListState extends State<AuditTrailScreen> {
-  final _qc = TextEditingController();
   List<dynamic> _people = [];
   bool _loading = true;
-  String _q = '';
-  Timer? _deb;
 
   @override
   void initState() {
@@ -148,17 +144,10 @@ class _AuditTrailListState extends State<AuditTrailScreen> {
     _load();
   }
 
-  @override
-  void dispose() {
-    _deb?.cancel();
-    _qc.dispose();
-    super.dispose();
-  }
-
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final r = await Api.persons(q: _q.isEmpty ? null : _q, limit: 50);
+      final r = await Api.persons(limit: 60);
       setState(() {
         _people = (r['results'] as List?) ?? [];
         _loading = false;
@@ -168,32 +157,11 @@ class _AuditTrailListState extends State<AuditTrailScreen> {
     }
   }
 
-  void _onSearch(String v) {
-    _q = v.trim();
-    _deb?.cancel();
-    _deb = Timer(const Duration(milliseconds: 350), _load);
-  }
-
   @override
   Widget build(BuildContext context) {
     return ListView(padding: const EdgeInsets.fromLTRB(16, 18, 16, 70), children: [
-      const PageHeader('Explainable AI', 'Audit Trail', desc: 'Select a flagged entity to open its full investigation report.'),
-      const SizedBox(height: 12),
-      GlassCard(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-        child: Row(children: [
-          const Icon(Icons.search, color: C.text3, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: TextField(
-              controller: _qc,
-              onChanged: _onSearch,
-              decoration: const InputDecoration(border: InputBorder.none, hintText: 'Search by CNIC or name...'),
-            ),
-          ),
-        ]),
-      ),
-      const SizedBox(height: 14),
+      const PageHeader('Explainable AI', 'Audit Trail', desc: 'Highest-risk flagged entities — tap one to open its full investigation report.'),
+      const SizedBox(height: 6),
       if (_loading)
         const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator(color: C.green)))
       else if (_people.isEmpty)
@@ -232,7 +200,7 @@ class _AuditTrailListState extends State<AuditTrailScreen> {
             Tag(zone.toUpperCase(), sev: sev),
             const SizedBox(width: 10),
             Text('${(dev as num).toInt()}', style: mono(18, w: FontWeight.w700, c: C.zone(zone))),
-            const Icon(Icons.chevron_right, color: C.text3),
+            Icon(Icons.chevron_right, color: C.text3),
           ]),
         ),
       ),
@@ -360,7 +328,7 @@ class _AuditReportScreenState extends State<AuditReportScreen> {
       ),
       const SizedBox(height: 14),
       GlassCard(
-        gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0x1AE5566F), C.panel]),
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [const Color(0x1AE5566F), C.panel]),
         border: const Color(0x4DE5566F),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [const Icon(Icons.flag, size: 16, color: C.critical), const SizedBox(width: 8), Text('Recommendation', style: display(15))]),

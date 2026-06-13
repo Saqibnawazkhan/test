@@ -119,7 +119,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       const SizedBox(height: 14),
       SizedBox(height: 150, child: LineChart(LineChartData(
         minY: 0, maxY: 100,
-        gridData: FlGridData(show: true, drawVerticalLine: false, getDrawingHorizontalLine: (_) => const FlLine(color: C.border, strokeWidth: 1)),
+        gridData: FlGridData(show: true, drawVerticalLine: false, getDrawingHorizontalLine: (_) => FlLine(color: C.border, strokeWidth: 1)),
         titlesData: const FlTitlesData(leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 24, interval: 25)), rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)), topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)), bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false))),
         borderData: FlBorderData(show: false),
         lineBarsData: [ln(filed, C.green), ln(nonf, C.high)],
@@ -170,7 +170,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Text('Network Snapshot', style: display(14)),
                   Text('Top flagged cluster', style: body(11, c: C.text3)),
                 ])),
-                Positioned(right: 14, top: 12, child: Container(padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7), decoration: BoxDecoration(color: C.panel2, border: Border.all(color: C.border), borderRadius: BorderRadius.circular(8)), child: Row(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.open_in_full, size: 13, color: C.text2), const SizedBox(width: 6), Text('Open', style: body(11, c: C.text2))]))),
+                Positioned(right: 14, top: 12, child: Container(padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7), decoration: BoxDecoration(color: C.panel2, border: Border.all(color: C.border), borderRadius: BorderRadius.circular(8)), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.open_in_full, size: 13, color: C.text2), const SizedBox(width: 6), Text('Open', style: body(11, c: C.text2))]))),
               ]),
             ),
           ),

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import '../api.dart';
 import '../theme.dart';
@@ -81,7 +82,7 @@ class _KnowledgeGraphScreenState extends State<KnowledgeGraphScreen> {
           Row(children: [
             Expanded(child: Text('Knowledge Graph', style: display(22))),
             OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(foregroundColor: C.blue, side: const BorderSide(color: C.border), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6)),
+              style: OutlinedButton.styleFrom(foregroundColor: C.blue, side: BorderSide(color: C.border), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6)),
               onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AllEntitiesScreen())),
               icon: const Icon(Icons.travel_explore, size: 16),
               label: Text('See all', style: body(12, w: FontWeight.w600, c: C.blue)),
@@ -93,11 +94,20 @@ class _KnowledgeGraphScreenState extends State<KnowledgeGraphScreen> {
       _hubSelector(),
       Expanded(
         child: Stack(children: [
-          Container(
-            margin: const EdgeInsets.all(16),
-            decoration: BoxDecoration(gradient: const RadialGradient(center: Alignment.center, radius: 0.95, colors: [C.bg2, C.bg1]), border: Border.all(color: C.border), borderRadius: BorderRadius.circular(14)),
-            clipBehavior: Clip.antiAlias,
-            child: LayoutBuilder(builder: (ctx, cons) {
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(AppCtl.dark.value ? 0.05 : 0.30),
+                    border: Border.all(color: Colors.white.withOpacity(AppCtl.dark.value ? 0.14 : 0.5)),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: LayoutBuilder(builder: (ctx, cons) {
               final view = cons.biggest;
               final center = Offset(view.width / 2, view.height * 0.44);
               final r = math.min(view.width, view.height) * 0.32;
@@ -113,6 +123,9 @@ class _KnowledgeGraphScreenState extends State<KnowledgeGraphScreen> {
                 ...neigh.map((id) => _node(_byId[id], pos[id]!, false)),
               ]);
             }),
+                ),
+              ),
+            ),
           ),
           if (neigh.isEmpty)
             Center(child: Text('No linked entities for this person.', style: body(12, c: C.text3))),
@@ -139,8 +152,8 @@ class _KnowledgeGraphScreenState extends State<KnowledgeGraphScreen> {
                 margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: active ? col.withOpacity(0.12) : C.bg2,
-                  border: Border.all(color: active ? col : C.border, width: active ? 1.5 : 1),
+                  color: active ? col.withOpacity(0.16) : Colors.white.withOpacity(AppCtl.dark.value ? 0.07 : 0.45),
+                  border: Border.all(color: active ? col : Colors.white.withOpacity(AppCtl.dark.value ? 0.16 : 0.6), width: active ? 1.5 : 1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -304,7 +317,7 @@ class _AllEntitiesScreenState extends State<AllEntitiesScreen> {
           child: GlassCard(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
             child: Row(children: [
-              const Icon(Icons.search, color: C.text3, size: 20),
+              Icon(Icons.search, color: C.text3, size: 20),
               const SizedBox(width: 10),
               Expanded(child: TextField(controller: _qc, onChanged: _onSearch, decoration: const InputDecoration(border: InputBorder.none, hintText: 'Search any CNIC or name…'))),
             ]),
@@ -339,7 +352,7 @@ class _AllEntitiesScreenState extends State<AllEntitiesScreen> {
                                 if (zone.isNotEmpty && zone != '-') Tag(zone.toUpperCase(), sev: sev),
                                 const SizedBox(width: 10),
                                 Text('${dev.toInt()}', style: mono(18, w: FontWeight.w700, c: C.zone(zone))),
-                                const Icon(Icons.chevron_right, color: C.text3),
+                                Icon(Icons.chevron_right, color: C.text3),
                               ]),
                             ),
                           ),

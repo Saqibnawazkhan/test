@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import '../api.dart';
 import '../theme.dart';
@@ -13,17 +12,14 @@ class AllRecordsScreen extends StatefulWidget {
 }
 
 class _AllRecordsScreenState extends State<AllRecordsScreen> {
-  final _qc = TextEditingController();
   List<dynamic> _people = [];
   int _total = 0;
   bool _loading = true;
   bool _loadingMore = false;
-  String _q = '';
   String? _zone;
   String? _district;
   String _sort = 'score';
   List<String> _districts = [];
-  Timer? _deb;
 
   @override
   void initState() {
@@ -32,18 +28,11 @@ class _AllRecordsScreenState extends State<AllRecordsScreen> {
     _query(reset: true);
   }
 
-  @override
-  void dispose() {
-    _deb?.cancel();
-    _qc.dispose();
-    super.dispose();
-  }
-
   Future<void> _query({required bool reset}) async {
     setState(() { if (reset) _loading = true; else _loadingMore = true; });
     try {
       final r = await Api.persons(
-        zone: _zone, district: _district, q: _q.isEmpty ? null : _q, sort: _sort,
+        zone: _zone, district: _district, sort: _sort,
         limit: 50, offset: reset ? 0 : _people.length,
       );
       final res = (r['results'] as List?) ?? [];
@@ -56,12 +45,6 @@ class _AllRecordsScreenState extends State<AllRecordsScreen> {
     } catch (_) {
       setState(() { _loading = false; _loadingMore = false; });
     }
-  }
-
-  void _onSearch(String v) {
-    _q = v.trim();
-    _deb?.cancel();
-    _deb = Timer(const Duration(milliseconds: 350), () => _query(reset: true));
   }
 
   @override
@@ -84,15 +67,6 @@ class _AllRecordsScreenState extends State<AllRecordsScreen> {
               const Expanded(child: PageHeader('Registry', 'All Records', desc: 'Every citizen on the national tax net.')),
             ]),
             const SizedBox(height: 10),
-            GlassCard(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-              child: Row(children: [
-                const Icon(Icons.search, color: C.text3, size: 20),
-                const SizedBox(width: 10),
-                Expanded(child: TextField(controller: _qc, onChanged: _onSearch, decoration: const InputDecoration(border: InputBorder.none, hintText: 'Search by CNIC or name…'))),
-              ]),
-            ),
-            const SizedBox(height: 8),
             SizedBox(
               height: 38,
               child: ListView(scrollDirection: Axis.horizontal, children: [
@@ -162,7 +136,7 @@ class _AllRecordsScreenState extends State<AllRecordsScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           decoration: BoxDecoration(color: C.bg2, border: Border.all(color: C.border), borderRadius: BorderRadius.circular(9)),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.swap_vert, size: 15, color: C.text2), const SizedBox(width: 5), Text('Sort', style: body(12, c: C.text2))]),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.swap_vert, size: 15, color: C.text2), const SizedBox(width: 5), Text('Sort', style: body(12, c: C.text2))]),
         ),
       );
 
@@ -175,7 +149,7 @@ class _AllRecordsScreenState extends State<AllRecordsScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           decoration: BoxDecoration(color: C.bg2, border: Border.all(color: C.border), borderRadius: BorderRadius.circular(9)),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.place_outlined, size: 15, color: C.text2), const SizedBox(width: 5), Text(_district ?? 'Area', style: body(12, c: C.text2))]),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.place_outlined, size: 15, color: C.text2), const SizedBox(width: 5), Text(_district ?? 'Area', style: body(12, c: C.text2))]),
         ),
       );
 

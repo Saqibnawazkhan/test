@@ -35,7 +35,7 @@ Widget _field(TextEditingController c, String label, IconData icon, {bool obscur
         labelStyle: body(12, c: C.text3),
         prefixIcon: Icon(icon, color: C.text3, size: 20),
         filled: true, fillColor: C.panel,
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(11), borderSide: const BorderSide(color: C.border)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(11), borderSide: BorderSide(color: C.border)),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(11), borderSide: const BorderSide(color: C.blue)),
       ),
     );

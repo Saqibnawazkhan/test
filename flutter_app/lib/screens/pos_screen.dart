@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import '../api.dart';
 import '../theme.dart';
@@ -12,11 +11,8 @@ class POSVerifyScreen extends StatefulWidget {
 }
 
 class _POSVerifyScreenState extends State<POSVerifyScreen> {
-  final _qc = TextEditingController();
   List<dynamic> _biz = [];
   bool _loading = true;
-  String _q = '';
-  Timer? _deb;
 
   @override
   void initState() {
@@ -24,17 +20,10 @@ class _POSVerifyScreenState extends State<POSVerifyScreen> {
     _load();
   }
 
-  @override
-  void dispose() {
-    _deb?.cancel();
-    _qc.dispose();
-    super.dispose();
-  }
-
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final r = await Api.posBusinesses(_q);
+      final r = await Api.posBusinesses('');
       setState(() {
         _biz = (r['results'] as List?) ?? [];
         _loading = false;
@@ -44,12 +33,6 @@ class _POSVerifyScreenState extends State<POSVerifyScreen> {
     }
   }
 
-  void _onSearch(String v) {
-    _q = v.trim();
-    _deb?.cancel();
-    _deb = Timer(const Duration(milliseconds: 350), _load);
-  }
-
   void _open(String cnic) => Navigator.push(context, MaterialPageRoute(builder: (_) => POSResultScreen(cnic: cnic)));
 
   @override
@@ -57,15 +40,6 @@ class _POSVerifyScreenState extends State<POSVerifyScreen> {
     return ListView(padding: const EdgeInsets.fromLTRB(16, 18, 16, 70), children: [
       const PageHeader('Tax Net', 'POS Verification', desc: 'Verify a business’s FBR POS integration and reconcile its reported sales.'),
       const SizedBox(height: 12),
-      GlassCard(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-        child: Row(children: [
-          const Icon(Icons.search, color: C.text3, size: 20),
-          const SizedBox(width: 10),
-          Expanded(child: TextField(controller: _qc, onChanged: _onSearch, decoration: const InputDecoration(border: InputBorder.none, hintText: 'Search business name / type / CNIC...'))),
-        ]),
-      ),
-      const SizedBox(height: 10),
       SizedBox(
         width: double.infinity,
         child: FilledButton.icon(
@@ -111,7 +85,7 @@ class _POSVerifyScreenState extends State<POSVerifyScreen> {
             ),
             const SizedBox(width: 8),
             if (zone.isNotEmpty && zone != '-') Tag(zone.toUpperCase(), sev: sev),
-            const Icon(Icons.chevron_right, color: C.text3),
+            Icon(Icons.chevron_right, color: C.text3),
           ]),
         ),
       ),
