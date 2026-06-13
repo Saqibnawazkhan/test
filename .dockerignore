@@ -1,0 +1,15 @@
+# Only the backend serving layer is needed for the image
+flutter_app
+website
+website_real
+Website
+backend_deploy
+node_modules
+**/node_modules
+**/build
+**/.dart_tool
+*.db
+**/*.db
+.git
+*.aab
+*.apk
