@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:typed_data';
+import 'package:crypto/crypto.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config.dart';
 
@@ -38,9 +40,16 @@ class Supa {
   static Future<void> announce(String title, String body) =>
       notify(recipient: 'all', audience: 'all', title: title, body: body, kind: 'announcement');
 
-  // ---------------- auth (demo-level: CNIC + password) ----------------
+  // ---------------- auth (CNIC + password) ----------------
+  // Passwords are never stored or sent in plaintext: we store a SHA-256 hash,
+  // salted per-user with the CNIC + a constant pepper. The same function runs on
+  // the web app and in the DB migration, so hashes always match.
+  static const String _pepper = 'taxnet_fbr_pepper_v1';
+  static String hashPw(String cnic, String password) =>
+      sha256.convert(utf8.encode('$cnic:$password:$_pepper')).toString();
+
   static Future<Map<String, dynamic>?> login(String cnic, String password) async {
-    final r = await _c.from('accounts').select().eq('cnic', cnic).eq('password', password).maybeSingle();
+    final r = await _c.from('accounts').select().eq('cnic', cnic).eq('password', hashPw(cnic, password)).maybeSingle();
     return r;
   }
 
@@ -48,15 +57,15 @@ class Supa {
   static Future<String?> signUp({required String cnic, String? name, required String password}) async {
     final existing = await _c.from('accounts').select('id').eq('cnic', cnic).maybeSingle();
     if (existing != null) return 'An account with this CNIC already exists. Please sign in.';
-    await _c.from('accounts').insert({'cnic': cnic, 'name': name, 'password': password, 'role': 'citizen'});
+    await _c.from('accounts').insert({'cnic': cnic, 'name': name, 'password': hashPw(cnic, password), 'role': 'citizen'});
     return null;
   }
 
-  /// Sync the account's display name + change password (best-effort).
+  /// Sync the account's display name + change password (stored hashed).
   static Future<void> updateAccount(String cnic, {String? name, String? password}) async {
     final patch = <String, dynamic>{};
     if (name != null) patch['name'] = name;
-    if (password != null && password.isNotEmpty) patch['password'] = password;
+    if (password != null && password.isNotEmpty) patch['password'] = hashPw(cnic, password);
     if (patch.isNotEmpty) await _c.from('accounts').update(patch).eq('cnic', cnic);
   }
 
